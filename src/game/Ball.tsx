@@ -2,6 +2,7 @@ import { forwardRef, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { BallCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
+import './game.css'
 import { BALL_RADIUS } from './config'
 import type { Weather } from './types'
 
