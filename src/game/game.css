@@ -1,0 +1,91 @@
+/* Phase 1 — WebGL broadcast match engine */
+.game-shell-3d {
+  isolation: isolate;
+  height: clamp(540px, 63vw, 790px);
+  min-height: 540px;
+  background: #050b08;
+  border-color: rgba(225, 245, 233, .16);
+  box-shadow: 0 44px 130px rgba(0, 0, 0, .48), inset 0 0 0 1px rgba(255, 255, 255, .025);
+}
+.game-shell-3d::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(1, 5, 3, .24), transparent 15%, transparent 76%, rgba(1, 5, 3, .45)), radial-gradient(circle at 50% 50%, transparent 58%, rgba(0, 0, 0, .2));
+}
+.game-shell-3d canvas { width: 100% !important; height: 100% !important; aspect-ratio: auto; outline: none; }
+.game-shell-3d:fullscreen { width: 100vw; height: 100vh; border: 0; border-radius: 0; }
+
+.broadcast-scorebug {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  top: 17px;
+  transform: translateX(-50%);
+  min-width: 430px;
+  height: 48px;
+  display: grid;
+  grid-template-columns: 1fr 36px 70px 36px 1fr;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(10, 16, 13, .94), rgba(3, 8, 6, .92));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .36);
+  backdrop-filter: blur(16px);
+  color: white;
+}
+.broadcast-scorebug::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: linear-gradient(#24b86e, #eac643, #e44747); }
+.broadcast-team { min-width: 0; display: flex; align-items: center; gap: 9px; padding: 0 14px; font: 800 10px/1 Manrope, sans-serif; letter-spacing: .08em; white-space: nowrap; }
+.broadcast-team.away { justify-content: flex-end; }
+.broadcast-team i { width: 15px; height: 22px; flex: 0 0 auto; border: 1px solid rgba(255, 255, 255, .45); border-radius: 3px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.08); }
+.broadcast-scorebug > strong { height: 100%; display: grid; place-items: center; background: rgba(255, 255, 255, .075); font: 800 18px Manrope, sans-serif; }
+.broadcast-clock { height: 100%; display: grid; place-items: center; color: #0b120f; background: var(--gold); font: 800 11px Manrope, sans-serif; letter-spacing: .04em; }
+.camera-status { position: absolute; z-index: 6; top: 20px; right: 18px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid rgba(255,255,255,.14); border-radius: 7px; background: rgba(3,8,6,.66); color: rgba(255,255,255,.74); backdrop-filter: blur(12px); font-size: 8px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.match-event-banner { position: absolute; z-index: 6; top: 77px; left: 50%; transform: translateX(-50%); padding: 7px 14px; border-radius: 6px; background: rgba(3,8,6,.68); color: rgba(255,255,255,.86); backdrop-filter: blur(9px); font-size: 9px; font-weight: 700; white-space: nowrap; }
+.broadcast-lower-third { position: absolute; z-index: 6; left: 18px; bottom: 17px; display: flex; align-items: center; gap: 5px; }
+.broadcast-lower-third span { min-height: 27px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border: 1px solid rgba(255,255,255,.12); border-radius: 5px; background: rgba(3,8,6,.64); color: rgba(255,255,255,.68); backdrop-filter: blur(10px); font-size: 7px; font-weight: 800; letter-spacing: .08em; }
+.fullscreen-button { position: absolute; z-index: 7; right: 17px; bottom: 17px; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.16); border-radius: 7px; background: rgba(3,8,6,.68); color: white; backdrop-filter: blur(10px); }
+.fullscreen-button:hover { background: rgba(36,184,110,.3); }
+
+.match-toolbar-3d { display: grid; grid-template-columns: auto 1fr auto; padding: 11px; gap: 12px; }
+.match-primary-actions, .match-environment-controls { display: flex; align-items: center; gap: 8px; }
+.camera-picker { justify-self: center; display: flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.018); }
+.camera-picker button { min-width: 74px; height: 37px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 9px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 8px; font-weight: 700; }
+.camera-picker button:hover { color: var(--text); background: rgba(255,255,255,.04); }
+.camera-picker button.active { color: #effff6; background: linear-gradient(135deg, rgba(36,184,110,.38), rgba(36,184,110,.14)); box-shadow: inset 0 0 0 1px rgba(74,222,137,.22); }
+.match-environment-controls label { margin-left: 0; width: auto; display: flex; align-items: center; gap: 6px; }
+.match-environment-controls select { max-width: 125px; }
+
+@media (max-width: 1180px) {
+  .match-toolbar-3d { grid-template-columns: 1fr auto; }
+  .camera-picker { grid-row: 2; grid-column: 1 / -1; justify-self: stretch; justify-content: center; }
+}
+
+@media (max-width: 760px) {
+  .game-shell-3d { height: min(720px, 116vw); min-height: 500px; }
+  .broadcast-scorebug { top: 10px; min-width: min(355px, calc(100% - 24px)); height: 43px; grid-template-columns: 1fr 31px 60px 31px 1fr; }
+  .broadcast-team { padding: 0 8px; font-size: 8px; }.broadcast-team i { width: 11px; height: 17px; }.broadcast-scorebug > strong { font-size: 15px; }.broadcast-clock { font-size: 9px; }
+  .camera-status { display: none; }
+  .match-event-banner { top: 59px; font-size: 7px; }
+  .broadcast-lower-third { display: none; }
+  .fullscreen-button { bottom: 82px; right: 10px; }
+  .match-toolbar-3d { grid-template-columns: 1fr; }
+  .match-primary-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .camera-picker { grid-row: auto; grid-column: auto; overflow-x: auto; justify-content: flex-start; }
+  .camera-picker button { min-width: 72px; }
+  .match-environment-controls { display: grid; grid-template-columns: 1fr 1fr auto; }
+  .match-environment-controls label { display: grid; gap: 4px; }
+  .match-environment-controls select { width: 100%; max-width: none; }
+}
+
+@media (max-width: 480px) {
+  .game-shell-3d { height: 600px; min-height: 600px; border-radius: 14px; }
+  .broadcast-scorebug { min-width: calc(100% - 16px); }
+  .broadcast-team { letter-spacing: .02em; }
+  .match-event-banner { max-width: 80%; overflow: hidden; text-overflow: ellipsis; }
+  .match-environment-controls { grid-template-columns: 1fr 1fr; }
+  .weather-picker { grid-column: 1 / -1; justify-content: center; }
+}
