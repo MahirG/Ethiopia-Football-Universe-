@@ -1,0 +1,12 @@
+{
+  "name": "Ethiopia Football Universe",
+  "short_name": "EFU",
+  "description": "Ethiopian football clubs, national teams, careers and a playable match experience.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07130f",
+  "theme_color": "#0f5a38",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
