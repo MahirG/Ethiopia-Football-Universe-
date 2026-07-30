@@ -1,10 +1,10 @@
 # Ethiopia Football Universe ⚽🇪🇹
 
-A production-oriented, responsive web game prototype and product portal for Ethiopian football. It combines a playable top-down match engine with club discovery, manager career simulation, tactics, competitions, youth development, community events, data administration concepts, localization and accessibility.
+A production-oriented, responsive web game prototype and product portal for Ethiopian football. It combines a playable WebGL 3D match engine with club discovery, manager career simulation, tactics, competitions, youth development, community events, data administration concepts, localization and accessibility.
 
 ## What is implemented
 
-- **Playable match prototype** — independent ball physics, player movement, sprinting, passing, shooting, AI pressure, goals, accelerated match time, weather and touch controls.
+- **Playable 3D match prototype** — React Three Fiber rendering, Rapier rigid-body football, 22 procedural athletes, official 105 × 68 m pitch geometry, AI pressure, goals, accelerated match time, weather, dynamic lighting and touch controls.
 - **Club universe** — searchable, filterable registry seeded with Premier League, Higher League and historic/community clubs.
 - **Persistent manager career** — club selection, fixtures, budget, training, recovery, scouting, facility upgrades, morale, fitness, reputation and board objectives.
 - **Tactical laboratory** — formations, mentality, pressing, width, tempo and team instructions.
@@ -41,6 +41,8 @@ npm run preview
 - Pass: `E`
 - Shoot: `Space`
 - Pause/resume: `P`
+- Camera: broadcast, follow, ball and free 8D modes
+- Free camera vertical movement: `Q` / `R`
 - Mobile: on-screen directional and action controls
 
 ## Architecture
@@ -50,6 +52,7 @@ src/
 ├── components/      # Product surfaces and playable game view
 ├── data/            # Data-driven clubs and localized content
 ├── hooks/           # Persistent local state
+├── game/            # Three.js scene, Rapier physics, pitch, stadium, athletes and cameras
 ├── App.tsx          # Application shell and route state
 ├── styles.css       # Responsive design system
 └── types.ts         # Shared domain types
@@ -72,11 +75,14 @@ League membership and competition formats can change. The application treats clu
 ## Product roadmap
 
 1. Core web vertical slice — implemented.
-2. Real backend, accounts and cloud saves.
-3. Expanded player database and licensed assets.
-4. Server-authoritative online multiplayer.
-5. Native PC/Android game client with shared services.
-6. Women’s football, youth national teams, additional divisions and commentary packs.
+2. Phase 1 3D engine foundation — implemented.
+3. Asset realism pass: GLTF athletes, mocap animation and compressed PBR materials.
+4. Advanced replays, crowd reactions, weather and broadcast cinematics.
+5. Real backend, accounts and cloud saves.
+6. Expanded player database and licensed assets.
+7. Server-authoritative online multiplayer.
+8. Native PC/Android game client with shared services.
+9. Women’s football, youth national teams, additional divisions and commentary packs.
 
 ## Legal
 
