@@ -1,4 +1,4 @@
-const CACHE = 'efu-v1';
+const CACHE = 'efu-v2-3d';
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['./', './index.html', './manifest.webmanifest', './icon.svg'])));
   self.skipWaiting();
