@@ -133,7 +133,7 @@ export function MatchScene(props: MatchSceneProps) {
       <Lighting timeOfDay={props.timeOfDay} weather={props.weather} />
 
       <Suspense fallback={null}>
-        <Physics gravity={[0, -9.81, 0]} paused={!props.running} timeStep={1 / 60} interpolation>
+        <Physics gravity={[0, -9.81, 0]} paused={!props.running} timeStep={1 / 60} interpolate>
           <Pitch weather={props.weather} />
           <Stadium timeOfDay={props.timeOfDay} />
           <Football ref={ballRef} weather={props.weather} />
