@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, type RefObject } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import { HALF_LENGTH, HALF_WIDTH, PLAYER_HEIGHT } from './config'
-import type { Difficulty, QualityLevel, TeamSide } from './types'
+import type { Difficulty, MatchAction, PresentationPhase, QualityLevel, TeamSide } from './types'
 import type { KeyboardState } from './useKeyboard'
 
-interface PlayerAvatarProps {
+interface Props {
   index: number
   team: TeamSide
   position: [number, number, number]
@@ -19,217 +19,144 @@ interface PlayerAvatarProps {
   keyboard: { current: KeyboardState }
   ballRef: { current: RapierRigidBody | null }
   controlledPosition: { current: THREE.Vector3 }
+  matchProgress: number
+  presentationPhase: PresentationPhase
+  celebrationTeam: TeamSide | null
   onEvent: (message: string) => void
+  onAction: (action: MatchAction, team: TeamSide) => void
 }
 
-const SKIN = ['#4d2a20', '#603528', '#75452f', '#8c593d', '#a86f50', '#bd8262']
-const HAIR = ['#101210', '#1a1815', '#26201b', '#33271f']
+const SKINS = ['#4f2b20', '#603526', '#73422d', '#89563b', '#a56d4e', '#bd8060']
 const NAMES = ['TESHOME', 'GIRMA', 'BEKELE', 'DEREJE', 'ABEBE', 'TADESSE', 'MULUGETA', 'KASSA', 'MEKONNEN', 'DAWIT', 'SAMUEL']
 
-function useShirtLabel(number: number, name: string) {
+function Label({ number, name }: { number: number; name: string }) {
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas')
     canvas.width = 256
     canvas.height = 256
     const context = canvas.getContext('2d')
     if (context) {
-      context.clearRect(0, 0, 256, 256)
-      context.fillStyle = '#f8f5e9'
+      context.fillStyle = '#f7f5ea'
       context.textAlign = 'center'
       context.font = '800 28px Arial'
-      context.fillText(name, 128, 48)
+      context.fillText(name, 128, 42)
       context.font = '900 132px Arial'
-      context.fillText(String(number), 128, 178)
+      context.fillText(String(number), 128, 174)
     }
     const value = new THREE.CanvasTexture(canvas)
     value.colorSpace = THREE.SRGBColorSpace
-    value.anisotropy = 4
     return value
   }, [name, number])
-  useEffect(() => () => texture.dispose(), [texture])
-  return texture
+  return <mesh position={[0, 0.25, -0.275]} rotation={[0, Math.PI, 0]}><planeGeometry args={[0.42, 0.5]} /><meshBasicMaterial map={texture} transparent toneMapped={false} /></mesh>
 }
 
-function Arm({ side, skin, kit, upper, lower }: {
-  side: -1 | 1
-  skin: string
-  kit: string
-  upper: RefObject<THREE.Group | null>
-  lower: RefObject<THREE.Group | null>
-}) {
-  return (
-    <group ref={upper} position={[side * 0.34, 0.43, 0]}>
-      <mesh position={[0, -0.17, 0]} castShadow>
-        <capsuleGeometry args={[0.105, 0.21, 5, 9]} />
-        <meshPhysicalMaterial color={kit} roughness={0.62} sheen={0.34} />
-      </mesh>
-      <group ref={lower} position={[0, -0.4, 0]}>
-        <mesh position={[0, -0.18, 0]} castShadow>
-          <capsuleGeometry args={[0.078, 0.24, 5, 9]} />
-          <meshPhysicalMaterial color={skin} roughness={0.55} clearcoat={0.05} />
-        </mesh>
-        <mesh position={[0, -0.39, 0]} castShadow>
-          <sphereGeometry args={[0.085, 10, 9]} />
-          <meshPhysicalMaterial color={skin} roughness={0.55} />
-        </mesh>
-      </group>
+function Limb({ side, upper, lower, boot, upperRef, lowerRef }: { side: -1 | 1; upper: string; lower: string; boot?: boolean; upperRef: React.RefObject<THREE.Group | null>; lowerRef: React.RefObject<THREE.Group | null> }) {
+  return <group ref={upperRef} position={[side * 0.2, boot ? -0.18 : 0.42, 0]}>
+    <mesh position={[0, -0.2, 0]} castShadow><capsuleGeometry args={[boot ? 0.11 : 0.095, boot ? 0.34 : 0.24, 5, 9]} /><meshPhysicalMaterial color={upper} roughness={0.66} sheen={0.22} /></mesh>
+    <group ref={lowerRef} position={[0, boot ? -0.53 : -0.42, 0]}>
+      <mesh position={[0, -0.21, 0]} castShadow><capsuleGeometry args={[0.078, boot ? 0.32 : 0.22, 5, 9]} /><meshPhysicalMaterial color={lower} roughness={0.62} /></mesh>
+      {boot ? <mesh position={[0, -0.45, 0.12]} castShadow><boxGeometry args={[0.18, 0.12, 0.4]} /><meshPhysicalMaterial color="#121514" roughness={0.4} clearcoat={0.22} /></mesh> : <mesh position={[0, -0.4, 0]}><sphereGeometry args={[0.085, 10, 8]} /><meshPhysicalMaterial color={lower} roughness={0.58} /></mesh>}
     </group>
-  )
+  </group>
 }
 
-function Leg({ side, shorts, socks, boot, upper, lower, foot }: {
-  side: -1 | 1
-  shorts: string
-  socks: string
-  boot: string
-  upper: RefObject<THREE.Group | null>
-  lower: RefObject<THREE.Group | null>
-  foot: RefObject<THREE.Group | null>
-}) {
-  return (
-    <group ref={upper} position={[side * 0.145, -0.24, 0]}>
-      <mesh position={[0, -0.23, 0]} castShadow>
-        <capsuleGeometry args={[0.112, 0.32, 6, 10]} />
-        <meshPhysicalMaterial color={shorts} roughness={0.7} sheen={0.18} />
-      </mesh>
-      <group ref={lower} position={[0, -0.52, 0]}>
-        <mesh position={[0, -0.25, 0]} castShadow>
-          <capsuleGeometry args={[0.084, 0.34, 6, 10]} />
-          <meshPhysicalMaterial color={socks} roughness={0.76} />
-        </mesh>
-        <group ref={foot} position={[0, -0.52, 0.08]}>
-          <mesh castShadow>
-            <boxGeometry args={[0.19, 0.13, 0.42]} />
-            <meshPhysicalMaterial color={boot} roughness={0.42} clearcoat={0.22} />
-          </mesh>
-          <mesh position={[0, -0.075, 0.07]}>
-            <boxGeometry args={[0.15, 0.025, 0.27]} />
-            <meshStandardMaterial color="#cdd2cc" roughness={0.65} />
-          </mesh>
-        </group>
-      </group>
-    </group>
-  )
-}
-
-export function PlayerAvatar({ index, team, position, color, secondaryColor, controlled = false, running, difficulty, quality, keyboard, ballRef, controlledPosition, onEvent }: PlayerAvatarProps) {
+export function PlayerAvatar({ index, team, position, color, secondaryColor, controlled = false, running, difficulty, quality, keyboard, ballRef, controlledPosition, matchProgress, presentationPhase, celebrationTeam, onEvent, onAction }: Props) {
   const bodyRef = useRef<RapierRigidBody>(null)
-  const root = useRef<THREE.Group>(null)
-  const torso = useRef<THREE.Group>(null)
-  const head = useRef<THREE.Group>(null)
+  const modelRef = useRef<THREE.Group>(null)
+  const torsoRef = useRef<THREE.Group>(null)
+  const headRef = useRef<THREE.Group>(null)
   const leftArm = useRef<THREE.Group>(null)
   const rightArm = useRef<THREE.Group>(null)
   const leftForearm = useRef<THREE.Group>(null)
   const rightForearm = useRef<THREE.Group>(null)
-  const leftThigh = useRef<THREE.Group>(null)
-  const rightThigh = useRef<THREE.Group>(null)
+  const leftLeg = useRef<THREE.Group>(null)
+  const rightLeg = useRef<THREE.Group>(null)
   const leftShin = useRef<THREE.Group>(null)
   const rightShin = useRef<THREE.Group>(null)
-  const leftFoot = useRef<THREE.Group>(null)
-  const rightFoot = useRef<THREE.Group>(null)
+  const eyelids = useRef<Array<THREE.Mesh | null>>([])
+  const mouthRef = useRef<THREE.Mesh>(null)
+  const skinMaterial = useRef<THREE.MeshPhysicalMaterial>(null)
   const velocity = useRef(new THREE.Vector3())
   const facing = useRef(team === 'home' ? 0 : Math.PI)
-  const cooldown = useRef(0)
   const kick = useRef(0)
+  const cooldown = useRef(0)
   const fatigue = useRef(0)
-  const home = useMemo(() => new THREE.Vector3(...position), [position])
-  const currentVector = useMemo(() => new THREE.Vector3(), [])
-  const ballVector = useMemo(() => new THREE.Vector3(), [])
+  const anchor = useMemo(() => new THREE.Vector3(...position), [position])
+  const current = useMemo(() => new THREE.Vector3(), [])
   const target = useMemo(() => new THREE.Vector3(), [])
   const direction = useMemo(() => new THREE.Vector3(), [])
-  const seed = index + (team === 'away' ? 13 : 0)
-  const height = 0.95 + (seed % 5) * 0.018
-  const shoulders = 0.9 + (seed % 4) * 0.05
-  const skin = SKIN[seed % SKIN.length]
-  const hair = HAIR[(seed * 3) % HAIR.length]
+  const skin = SKINS[(index + (team === 'away' ? 2 : 0)) % SKINS.length]
   const goalkeeper = index === 0
   const kit = goalkeeper ? secondaryColor : color
   const trim = goalkeeper ? color : secondaryColor
-  const socks = index % 3 === 0 ? trim : '#f0eee5'
-  const boots = index % 4 === 0 ? '#773b31' : index % 4 === 1 ? '#d4bd46' : '#101412'
-  const label = useShirtLabel(index + 1, NAMES[index % NAMES.length])
+  const build = 0.92 + ((index * 7 + (team === 'away' ? 3 : 0)) % 5) * 0.035
 
   useFrame((state, delta) => {
     const body = bodyRef.current
     if (!body) return
-    const current = body.translation()
-    currentVector.set(current.x, current.y, current.z)
+    const translation = body.translation()
+    current.set(translation.x, translation.y, translation.z)
     cooldown.current = Math.max(0, cooldown.current - delta)
     kick.current = Math.max(0, kick.current - delta)
+    const ball = ballRef.current
+    const ballTranslation = ball?.translation()
 
-    if (!running) {
-      velocity.current.multiplyScalar(Math.pow(0.08, delta))
-      fatigue.current = Math.max(0, fatigue.current - delta * 0.05)
-    } else if (controlled) {
+    if (!running || presentationPhase !== 'live') velocity.current.multiplyScalar(Math.pow(0.05, delta))
+    else if (controlled) {
       const held = keyboard.current.held
-      let x = 0
-      let z = 0
-      if (held.has('w') || held.has('arrowup')) x += 1
-      if (held.has('s') || held.has('arrowdown')) x -= 1
-      if (held.has('a') || held.has('arrowleft')) z -= 1
-      if (held.has('d') || held.has('arrowright')) z += 1
+      let x = Number(held.has('w') || held.has('arrowup')) - Number(held.has('s') || held.has('arrowdown'))
+      let z = Number(held.has('d') || held.has('arrowright')) - Number(held.has('a') || held.has('arrowleft'))
       const length = Math.hypot(x, z)
-      const sprinting = held.has('shift') && length > 0
-      fatigue.current = THREE.MathUtils.clamp(fatigue.current + delta * (sprinting ? 0.034 : -0.018), 0, 1)
-      const speed = (sprinting ? 9.5 : 6.45) * (1 - fatigue.current * 0.17)
+      const sprint = held.has('shift') && length > 0
+      fatigue.current = THREE.MathUtils.clamp(Math.max(matchProgress * 0.36, fatigue.current + delta * (sprint ? 0.035 : -0.016)), 0, 1)
+      const speed = (sprint ? 9.4 : 6.35) * (1 - (fatigue.current + matchProgress * 0.28) * 0.2)
       if (length > 0) {
-        x /= length
-        z /= length
-        velocity.current.x = THREE.MathUtils.damp(velocity.current.x, x * speed, 10.5, delta)
-        velocity.current.z = THREE.MathUtils.damp(velocity.current.z, z * speed, 10.5, delta)
+        x /= length; z /= length
+        velocity.current.x = THREE.MathUtils.damp(velocity.current.x, x * speed, 10, delta)
+        velocity.current.z = THREE.MathUtils.damp(velocity.current.z, z * speed, 10, delta)
         facing.current = Math.atan2(z, x)
-      } else {
-        velocity.current.x = THREE.MathUtils.damp(velocity.current.x, 0, 13, delta)
-        velocity.current.z = THREE.MathUtils.damp(velocity.current.z, 0, 13, delta)
-      }
+      } else velocity.current.multiplyScalar(Math.pow(0.08, delta))
 
-      const ball = ballRef.current
-      if (ball) {
-        const ballPosition = ball.translation()
-        ballVector.set(ballPosition.x, ballPosition.y, ballPosition.z)
-        const distance = Math.hypot(ballPosition.x - current.x, ballPosition.z - current.z)
-        const shot = keyboard.current.pressed.has(' ')
+      if (ball && ballTranslation) {
+        direction.set(ballTranslation.x - current.x, 0, ballTranslation.z - current.z)
+        const distance = direction.length()
+        if (distance < 1.35 && ball.linvel().x * ball.linvel().x + ball.linvel().z * ball.linvel().z < 85) {
+          const frontX = Math.cos(facing.current)
+          const frontZ = Math.sin(facing.current)
+          ball.setLinvel({ x: velocity.current.x + frontX * 1.6, y: ball.linvel().y, z: velocity.current.z + frontZ * 1.6 }, true)
+        }
+        const shoot = keyboard.current.pressed.has(' ')
         const pass = keyboard.current.pressed.has('e')
-        if ((shot || pass) && distance < 1.65 && cooldown.current === 0) {
-          direction.set(Math.cos(facing.current), shot ? 0.18 : 0.08, Math.sin(facing.current)).normalize()
-          const power = shot ? 9.8 : 5.8
-          const curl = held.has('a') ? -1 : held.has('d') ? 1 : 0
-          ball.applyImpulse({ x: direction.x * power, y: direction.y * power, z: direction.z * power }, true)
-          ball.applyTorqueImpulse({ x: -direction.z * 0.085, y: curl * (shot ? 0.28 : 0.12), z: direction.x * 0.085 }, true)
-          cooldown.current = 0.52
-          kick.current = 0.34
-          onEvent(shot ? 'Power shot · spin engaged' : 'Weighted pass released')
-        } else if (distance < 1.25 && velocity.current.lengthSq() > 1.1) {
-          target.set(current.x + Math.cos(facing.current) * 0.92, 0.16, current.z + Math.sin(facing.current) * 0.92)
-          direction.copy(target).sub(ballVector).multiplyScalar(0.065)
-          const ballVelocity = ball.linvel()
-          direction.x -= ballVelocity.x * 0.006
-          direction.z -= ballVelocity.z * 0.006
-          ball.applyImpulse({ x: direction.x, y: Math.max(0, direction.y * 0.15), z: direction.z }, true)
+        if ((shoot || pass) && distance < 2 && cooldown.current === 0) {
+          keyboard.current.pressed.delete(shoot ? ' ' : 'e')
+          const power = shoot ? 15.8 : 8.7
+          const frontX = Math.cos(facing.current)
+          const frontZ = Math.sin(facing.current)
+          ball.setLinvel({ x: frontX * power, y: shoot ? 2.5 : 0.55, z: frontZ * power }, true)
+          ball.setAngvel({ x: -frontZ * 8, y: shoot ? 4 : 1.4, z: frontX * 8 }, true)
+          kick.current = 0.34; cooldown.current = 0.42
+          onAction(shoot ? 'shot' : 'pass', team)
+          onEvent(shoot ? 'Shot unleashed' : 'Pass released')
         }
       }
-      keyboard.current.pressed.delete(' ')
-      keyboard.current.pressed.delete('e')
     } else {
-      const ball = ballRef.current?.translation()
-      const aggression = difficulty === 'Legendary' ? 1 : difficulty === 'Professional' ? 0.76 : 0.52
-      const distanceToBall = ball ? Math.hypot(ball.x - current.x, ball.z - current.z) : Number.POSITIVE_INFINITY
-      const chase = index > 0 && ball && distanceToBall < 7 + aggression * 8.5
-      if (chase && ball) target.set(ball.x, 0, ball.z)
-      else target.copy(home)
-      direction.set(target.x - current.x, 0, target.z - current.z)
-      if (direction.length() > 0.2) {
+      const pressure = difficulty === 'Legendary' ? 15 : difficulty === 'Professional' ? 10 : 7
+      const nearBall = ballTranslation && Math.hypot(ballTranslation.x - current.x, ballTranslation.z - current.z) < pressure
+      if (nearBall && ballTranslation) target.set(ballTranslation.x, PLAYER_HEIGHT / 2, ballTranslation.z)
+      else target.copy(anchor).add(new THREE.Vector3(Math.sin(state.clock.elapsedTime * 0.22 + index) * 1.2, 0, Math.cos(state.clock.elapsedTime * 0.18 + index) * 0.9))
+      direction.subVectors(target, current); direction.y = 0
+      const distance = direction.length()
+      if (distance > 0.2) {
         direction.normalize()
-        const speed = chase ? 4.25 + aggression * 2 : 1.55
-        velocity.current.x = THREE.MathUtils.damp(velocity.current.x, direction.x * speed, 4.8, delta)
-        velocity.current.z = THREE.MathUtils.damp(velocity.current.z, direction.z * speed, 4.8, delta)
+        const speed = nearBall ? (difficulty === 'Legendary' ? 6.2 : 4.8) : 1.7
+        velocity.current.lerp(direction.multiplyScalar(speed), 1 - Math.exp(-4 * delta))
         facing.current = Math.atan2(velocity.current.z, velocity.current.x)
-      } else velocity.current.multiplyScalar(Math.pow(0.12, delta))
-      if (ball && distanceToBall < 0.88 && cooldown.current === 0) {
+      } else velocity.current.multiplyScalar(0.8)
+      if (ball && ballTranslation && Math.hypot(ballTranslation.x - current.x, ballTranslation.z - current.z) < 1.05 && cooldown.current === 0) {
         const attack = team === 'home' ? 1 : -1
-        ballRef.current?.applyImpulse({ x: attack * (5.5 + aggression * 2.4), y: 1.05, z: Math.sin(state.clock.elapsedTime + index) * 1.75 }, true)
-        cooldown.current = 1.2
-        kick.current = 0.28
+        ball.setLinvel({ x: attack * (7 + Math.random() * 5), y: 0.7 + Math.random(), z: (Math.random() - 0.5) * 5 }, true)
+        cooldown.current = 1.1
+        onAction(Math.random() > 0.72 ? 'shot' : 'pass', team)
       }
     }
 
@@ -238,59 +165,58 @@ export function PlayerAvatar({ index, team, position, color, secondaryColor, con
     body.setNextKinematicTranslation({ x: nextX, y: PLAYER_HEIGHT / 2, z: nextZ })
     if (controlled) controlledPosition.current.set(nextX, PLAYER_HEIGHT / 2, nextZ)
 
-    const movement = velocity.current.length()
-    const frequency = movement > 7.2 ? 14.5 : movement > 2.2 ? 9.4 : 3.4
-    const stride = Math.sin(state.clock.elapsedTime * frequency + index * 0.4) * Math.min(0.78, movement * 0.09)
-    const kneeLeft = Math.max(0, -stride) * 0.72
-    const kneeRight = Math.max(0, stride) * 0.72
-    const kickProgress = kick.current > 0 ? Math.sin((1 - kick.current / 0.34) * Math.PI) : 0
-    if (root.current) {
-      root.current.rotation.y = -facing.current + Math.PI / 2
-      root.current.position.y = Math.abs(stride) * 0.026
-      root.current.rotation.z = THREE.MathUtils.damp(root.current.rotation.z, -velocity.current.z * 0.018, 7, delta)
+    const speed = velocity.current.length()
+    const stride = Math.sin(state.clock.elapsedTime * (speed > 7 ? 14 : speed > 2 ? 9 : 3) + index) * Math.min(0.75, speed * 0.09)
+    const kickPose = kick.current > 0 ? Math.sin((1 - kick.current / 0.34) * Math.PI) : 0
+    const celebrate = celebrationTeam === team && (presentationPhase === 'live' || presentationPhase === 'fulltime')
+    if (modelRef.current) {
+      modelRef.current.rotation.y = -facing.current + Math.PI / 2
+      modelRef.current.position.y = Math.abs(stride) * 0.025 + (celebrate ? Math.abs(Math.sin(state.clock.elapsedTime * 7 + index)) * 0.07 : 0)
     }
-    if (torso.current) {
-      torso.current.scale.y = 1 + Math.sin(state.clock.elapsedTime * (movement > 5 ? 5.2 : 2.4) + index) * 0.012 + fatigue.current * 0.018
+    if (torsoRef.current) {
+      torsoRef.current.scale.y = 1 + Math.sin(state.clock.elapsedTime * (speed > 5 ? 5 : 2.4) + index) * 0.012 + matchProgress * 0.016
+      torsoRef.current.rotation.x = THREE.MathUtils.damp(torsoRef.current.rotation.x, matchProgress > 0.75 && speed < 1 ? 0.12 : 0, 4, delta)
     }
-    if (leftThigh.current) leftThigh.current.rotation.x = stride
-    if (rightThigh.current) rightThigh.current.rotation.x = -stride - kickProgress * 1.35
-    if (leftShin.current) leftShin.current.rotation.x = kneeLeft
-    if (rightShin.current) rightShin.current.rotation.x = kneeRight + kickProgress * 0.58
-    if (leftFoot.current) leftFoot.current.rotation.x = -kneeLeft * 0.42
-    if (rightFoot.current) rightFoot.current.rotation.x = -kneeRight * 0.42 + kickProgress * 0.28
-    if (leftArm.current) leftArm.current.rotation.x = -stride * 0.7
-    if (rightArm.current) rightArm.current.rotation.x = stride * 0.7
-    if (leftForearm.current) leftForearm.current.rotation.x = Math.abs(stride) * 0.22
-    if (rightForearm.current) rightForearm.current.rotation.x = Math.abs(stride) * 0.22
-    const trackedBall = ballRef.current?.translation()
-    if (head.current && trackedBall) {
-      const angle = Math.atan2(trackedBall.z - current.z, trackedBall.x - current.x) - facing.current
-      head.current.rotation.y = THREE.MathUtils.damp(head.current.rotation.y, THREE.MathUtils.clamp(Math.atan2(Math.sin(angle), Math.cos(angle)), -0.58, 0.58), 7.5, delta)
+    if (leftLeg.current) leftLeg.current.rotation.x = stride
+    if (rightLeg.current) rightLeg.current.rotation.x = -stride - kickPose * 1.35
+    if (leftShin.current) leftShin.current.rotation.x = Math.max(0, -stride) * 0.65
+    if (rightShin.current) rightShin.current.rotation.x = Math.max(0, stride) * 0.65 + kickPose * 0.5
+    if (leftArm.current) { leftArm.current.rotation.x = celebrate ? -2.25 : -stride * 0.7; leftArm.current.rotation.z = celebrate ? -0.5 : 0 }
+    if (rightArm.current) { rightArm.current.rotation.x = celebrate ? -2.25 : stride * 0.7; rightArm.current.rotation.z = celebrate ? 0.5 : 0 }
+    if (leftForearm.current) leftForearm.current.rotation.x = Math.abs(stride) * 0.2
+    if (rightForearm.current) rightForearm.current.rotation.x = Math.abs(stride) * 0.2
+
+    if (headRef.current && ballTranslation) {
+      const angle = Math.atan2(ballTranslation.z - current.z, ballTranslation.x - current.x) - facing.current
+      headRef.current.rotation.y = THREE.MathUtils.damp(headRef.current.rotation.y, THREE.MathUtils.clamp(Math.atan2(Math.sin(angle), Math.cos(angle)), -0.55, 0.55), 7, delta)
     }
+    const blinkCycle = (state.clock.elapsedTime + index * 0.47) % (3.1 + (index % 4) * 0.4)
+    const blink = blinkCycle < 0.11 ? Math.sin(blinkCycle / 0.11 * Math.PI) : 0
+    eyelids.current.forEach((lid) => { if (lid) lid.scale.y = 0.12 + blink })
+    if (mouthRef.current) mouthRef.current.scale.y = THREE.MathUtils.damp(mouthRef.current.scale.y, celebrate ? 1.6 : speed > 6 ? 0.95 : 0.42, 8, delta)
+    if (skinMaterial.current) { skinMaterial.current.clearcoat = 0.06 + matchProgress * 0.3; skinMaterial.current.roughness = 0.5 - matchProgress * 0.12 }
   })
 
-  return (
-    <RigidBody ref={bodyRef} type="kinematicPosition" colliders={false} position={position} enabledRotations={[false, false, false]}>
-      <CapsuleCollider args={[0.5, 0.27 * shoulders]} friction={0.82} />
-      <group ref={root} scale={[shoulders, height, 1]}>
-        <group ref={torso}>
-          <mesh position={[0, 0.22, 0]} castShadow><capsuleGeometry args={[0.265, 0.5, quality === 'performance' ? 6 : 9, quality === 'performance' ? 10 : 16]} /><meshPhysicalMaterial color={kit} roughness={0.57} sheen={0.44} /></mesh>
-          <mesh position={[0, 0.47, 0.02]} castShadow><cylinderGeometry args={[0.255, 0.315, 0.09, 16]} /><meshPhysicalMaterial color={trim} roughness={0.62} /></mesh>
-          <mesh position={[0, -0.17, 0]} castShadow><boxGeometry args={[0.5, 0.26, 0.42]} /><meshPhysicalMaterial color={kit} roughness={0.66} sheen={0.3} /></mesh>
-          <mesh position={[0, 0.22, -0.274]} rotation={[0, Math.PI, 0]}><planeGeometry args={[0.43, 0.48]} /><meshBasicMaterial map={label} transparent depthWrite={false} toneMapped={false} /></mesh>
-        </group>
-        <group ref={head}>
-          <mesh position={[0, 0.79, 0]} castShadow><sphereGeometry args={[0.205, quality === 'performance' ? 14 : 22, 18]} /><meshPhysicalMaterial color={skin} roughness={0.5} clearcoat={0.06} /></mesh>
-          <mesh position={[0, 0.78, 0.195]} castShadow><coneGeometry args={[0.044, 0.12, 8]} /><meshPhysicalMaterial color={skin} roughness={0.55} /></mesh>
-          <mesh position={[0, 0.96, 0]} castShadow><sphereGeometry args={[0.208, quality === 'performance' ? 12 : 18, 12, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={hair} roughness={0.96} /></mesh>
-          {quality !== 'performance' && <><mesh position={[-0.073, 0.835, 0.188]}><sphereGeometry args={[0.018, 8, 8]} /><meshBasicMaterial color="#171817" /></mesh><mesh position={[0.073, 0.835, 0.188]}><sphereGeometry args={[0.018, 8, 8]} /><meshBasicMaterial color="#171817" /></mesh></>}
-        </group>
-        <Arm side={-1} skin={skin} kit={kit} upper={leftArm} lower={leftForearm} />
-        <Arm side={1} skin={skin} kit={kit} upper={rightArm} lower={rightForearm} />
-        <Leg side={-1} shorts={kit} socks={socks} boot={boots} upper={leftThigh} lower={leftShin} foot={leftFoot} />
-        <Leg side={1} shorts={kit} socks={socks} boot={boots} upper={rightThigh} lower={rightShin} foot={rightFoot} />
-        {controlled && <group position={[0, 1.44, 0]}><mesh rotation={[0, 0, Math.PI]}><coneGeometry args={[0.22, 0.42, 3]} /><meshStandardMaterial color="#f2cc41" emissive="#d99d12" emissiveIntensity={1.05} /></mesh><pointLight color="#f2cc41" intensity={0.48} distance={2.4} /></group>}
+  return <RigidBody ref={bodyRef} type="kinematicPosition" colliders={false} position={position} enabledRotations={[false, false, false]}>
+    <CapsuleCollider args={[0.5, 0.27 * build]} />
+    <group ref={modelRef} scale={[build, 0.98 + index % 4 * 0.018, 1]}>
+      <group ref={torsoRef}>
+        <mesh position={[0, 0.22, 0]} castShadow><capsuleGeometry args={[0.27, 0.5, quality === 'performance' ? 6 : 9, 14]} /><meshPhysicalMaterial color={kit} roughness={0.57} sheen={0.42} /></mesh>
+        <mesh position={[0, -0.18, 0]} castShadow><boxGeometry args={[0.51, 0.26, 0.43]} /><meshPhysicalMaterial color={kit} roughness={0.66} sheen={0.28} /></mesh>
+        <mesh position={[0, 0.48, 0]} castShadow><cylinderGeometry args={[0.25, 0.31, 0.09, 16]} /><meshPhysicalMaterial color={trim} roughness={0.62} /></mesh>
+        <Label number={index + 1} name={NAMES[index % NAMES.length]} />
       </group>
-    </RigidBody>
-  )
+      <group ref={headRef}>
+        <mesh position={[0, 0.8, 0]} castShadow><sphereGeometry args={[0.205, quality === 'performance' ? 14 : 22, 18]} /><meshPhysicalMaterial ref={skinMaterial} color={skin} roughness={0.5} clearcoat={0.06} /></mesh>
+        <mesh position={[0, 0.98, 0]} castShadow><sphereGeometry args={[0.205, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color="#171714" roughness={0.96} /></mesh>
+        {quality !== 'performance' && <><mesh position={[-0.07, 0.84, 0.19]}><sphereGeometry args={[0.018, 8, 8]} /><meshBasicMaterial color="#171717" /></mesh><mesh position={[0.07, 0.84, 0.19]}><sphereGeometry args={[0.018, 8, 8]} /><meshBasicMaterial color="#171717" /></mesh>{[-0.07, 0.07].map((x, i) => <mesh key={x} ref={(node) => { eyelids.current[i] = node }} position={[x, 0.85, 0.205]}><boxGeometry args={[0.052, 0.018, 0.008]} /><meshBasicMaterial color={skin} /></mesh>)}<mesh ref={mouthRef} position={[0, 0.72, 0.195]} rotation={[0, 0, Math.PI / 2]}><capsuleGeometry args={[0.009, 0.055, 3, 7]} /><meshStandardMaterial color="#48251d" /></mesh></>}
+      </group>
+      <Limb side={-1} upper={kit} lower={skin} upperRef={leftArm} lowerRef={leftForearm} />
+      <Limb side={1} upper={kit} lower={skin} upperRef={rightArm} lowerRef={rightForearm} />
+      <Limb side={-1} upper={kit} lower="#f2f0e7" boot upperRef={leftLeg} lowerRef={leftShin} />
+      <Limb side={1} upper={kit} lower="#f2f0e7" boot upperRef={rightLeg} lowerRef={rightShin} />
+      {quality !== 'performance' && matchProgress > 0.2 && <mesh position={[-0.18, -0.18, 0.23]}><circleGeometry args={[0.1 + matchProgress * 0.06, 12]} /><meshBasicMaterial color="#3d281c" transparent opacity={0.08 + matchProgress * 0.23} depthWrite={false} /></mesh>}
+      {controlled && <group position={[0, 1.45, 0]}><mesh rotation={[0, 0, Math.PI]}><coneGeometry args={[0.22, 0.42, 3]} /><meshStandardMaterial color="#f2cc41" emissive="#d99d12" emissiveIntensity={1.05} /></mesh><pointLight color="#f2cc41" intensity={0.45} distance={2.4} /></group>}
+    </group>
+  </RigidBody>
 }
