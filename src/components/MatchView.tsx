@@ -286,7 +286,7 @@ export function MatchView() {
     audio.emit('match-started', { scoreHome: score.home, scoreAway: score.away, importance: world.competition.prestige })
     audio.announceWelcome()
     setCountdown(5)
-    audio.setCrowd({ intensity: 0.48, importance: world.competition.prestige, capacityRatio: world.attendance.capacityRatio, tension: world.crowd.tension, derby: worldSelection.importance === 'derby' })
+    audio.setCrowd({ intensity: 0.48, importance: world.competition.prestige, capacityRatio: world.attendance.capacityRatio, tension: world.crowd.tension, derby: worldSelection.importance === 'derby' ? 1 : 0 })
     countdownTimerRef.current = window.setInterval(() => {
       setCountdown((current) => current === null ? null : Math.max(1, current - 1))
     }, 1000)
