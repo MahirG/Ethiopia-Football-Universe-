@@ -4,7 +4,7 @@ on:
   push:
     branches: [agent/phase5-final]
   pull_request:
-    branches: [phase5-validation-base]
+    branches: [p5-check]
     types: [opened, synchronize, reopened]
 
 permissions:
