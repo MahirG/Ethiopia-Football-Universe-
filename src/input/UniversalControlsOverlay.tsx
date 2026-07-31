@@ -12,10 +12,19 @@ interface ActionButtonProps {
   className?: string
 }
 
+function safelyHasPointerCapture(element: HTMLElement, pointerId: number) {
+  try {
+    return typeof element.hasPointerCapture === 'function' && element.hasPointerCapture(pointerId)
+  } catch {
+    return false
+  }
+}
+
 function safelyCapturePointer(element: HTMLElement, pointerId: number) {
   try {
+    if (typeof element.setPointerCapture !== 'function') return false
     element.setPointerCapture(pointerId)
-    return element.hasPointerCapture(pointerId)
+    return safelyHasPointerCapture(element, pointerId)
   } catch {
     return false
   }
@@ -23,7 +32,9 @@ function safelyCapturePointer(element: HTMLElement, pointerId: number) {
 
 function safelyReleasePointer(element: HTMLElement, pointerId: number) {
   try {
-    if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId)
+    if (safelyHasPointerCapture(element, pointerId) && typeof element.releasePointerCapture === 'function') {
+      element.releasePointerCapture(pointerId)
+    }
   } catch {
     // Some mobile WebViews drop pointer capture before React receives pointerup.
   }
@@ -62,7 +73,7 @@ function ActionButton({ action, label, className = '' }: ActionButtonProps) {
       onPointerCancel={release}
       onLostPointerCapture={release}
       onPointerLeave={(event) => {
-        if (activePointer.current === event.pointerId && !event.currentTarget.hasPointerCapture(event.pointerId)) release(event)
+        if (activePointer.current === event.pointerId && !safelyHasPointerCapture(event.currentTarget, event.pointerId)) release(event)
       }}
       onClick={(event) => {
         event.preventDefault()
@@ -162,7 +173,7 @@ export function UniversalControlsOverlay({ enabled }: UniversalControlsOverlayPr
         onPointerCancel={releasePointer}
         onLostPointerCapture={releasePointer}
         onPointerLeave={(event) => {
-          if (activePointer.current === event.pointerId && !event.currentTarget.hasPointerCapture(event.pointerId)) releasePointer(event)
+          if (activePointer.current === event.pointerId && !safelyHasPointerCapture(event.currentTarget, event.pointerId)) releasePointer(event)
         }}
       >
         <span className="joystick-ring" />
