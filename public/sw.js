@@ -1,4 +1,4 @@
-const CACHE = 'efu-v9-phase5-competitive-intelligence';
+const CACHE = 'efu-v10-phase6-connected-platform';
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['./', './index.html', './manifest.webmanifest', './icon.svg'])));
   self.skipWaiting();
