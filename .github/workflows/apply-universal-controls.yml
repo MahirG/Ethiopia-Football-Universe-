@@ -129,7 +129,7 @@ jobs:
               print(item['path'])
           PY
           )
-          git -C "$SOURCE" add -A -- "${PATCHED_PATHS[@]}"
+          git -C "$SOURCE" add -A
           git -C "$SOURCE" apply --index --recount "$PATCH"
 
           mapfile -t CHANGED < <(git -C "$SOURCE" diff --cached --name-only)
