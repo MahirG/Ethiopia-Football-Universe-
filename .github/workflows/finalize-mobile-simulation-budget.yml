@@ -1,0 +1,35 @@
+name: Finalize mobile simulation budget
+
+on:
+  push:
+    branches: [agent/mobile-live-simulation-budget]
+    paths:
+      - scripts/finalize-mobile-simulation-budget.mjs
+      - .github/workflows/finalize-mobile-simulation-budget.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/mobile-live-simulation-budget
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/finalize-mobile-simulation-budget.mjs
+      - run: npm install
+      - run: npm run lint
+      - run: npm run build
+      - name: Commit simulation budget
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/game/PlayerAvatar.tsx
+          git commit -m "Throttle mobile player perception and AI" || exit 0
+          git push origin HEAD:agent/mobile-live-simulation-budget
