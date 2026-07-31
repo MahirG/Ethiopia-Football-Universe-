@@ -42,6 +42,11 @@ import type {
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import type { MatchRecord } from '../types'
 import type { HumanTelemetry } from '../human/types'
+import { DEFAULT_WORLD_SELECTION } from '../world/catalog'
+import { createMatchWorld } from '../world/engine'
+import { WorldControlPanel } from '../world/WorldControlPanel'
+import type { WorldSelection } from '../world/types'
+import '../world/world.css'
 
 const MATCH_MINUTES_PER_SECOND = 4.5
 const REPLAY_DURATION_MS = 4400
@@ -124,6 +129,7 @@ export function MatchView() {
   const [difficulty, setDifficulty] = useState<Difficulty>('Professional')
   const [quality, setQuality] = useLocalStorage<QualityLevel>('efu-graphics-quality', 'balanced')
   const [cameraShake, setCameraShake] = useLocalStorage('efu-camera-shake', true)
+  const [worldSelection, setWorldSelection] = useLocalStorage<WorldSelection>('efu-world-selection', DEFAULT_WORLD_SELECTION)
   const [showAudioSettings, setShowAudioSettings] = useState(false)
   const [showAudioDebug, setShowAudioDebug] = useState(false)
   const [sceneKey, setSceneKey] = useState(0)
@@ -141,18 +147,41 @@ export function MatchView() {
   const [records, setRecords] = useLocalStorage<MatchRecord[]>('efu-match-history', [])
   const home = useMemo(() => premierClubs.find((item) => item.id === homeId) ?? premierClubs[0], [homeId])
   const away = useMemo(() => premierClubs.find((item) => item.id === awayId) ?? premierClubs[1], [awayId])
+  const matchProgress = Math.min(1, score.time / 90)
+  const patchWorldSelection = useCallback((patch: Partial<WorldSelection>) => setWorldSelection((current) => ({ ...current, ...patch })), [setWorldSelection])
+  const world = useMemo(() => createMatchWorld({
+    selection: worldSelection,
+    weather,
+    weatherIntensity,
+    timeOfDay,
+    matchMinute: score.time,
+    scoreHome: score.home,
+    scoreAway: score.away,
+    presentationPhase,
+    quality,
+    homePopularity: 0.78,
+    awayPopularity: 0.7,
+    homeForm: 0.58,
+    rivalry: worldSelection.importance === 'derby' ? 1 : worldSelection.importance === 'final' ? 0.72 : 0.28,
+    ticketPriceIndex: 0.52,
+    dayTimeAccessibility: ['night', 'late-night'].includes(timeOfDay) ? 0.62 : 0.86,
+    economicIndex: 0.62,
+    recentMatches: 2,
+    slides: humanTelemetry.footSlipEvents,
+    eventPulse: replayToken > 0 ? 1 : 0,
+    lastEvent: message,
+  }), [humanTelemetry.footSlipEvents, message, presentationPhase, quality, replayToken, score.away, score.home, score.time, timeOfDay, weather, weatherIntensity, worldSelection])
   const { settings: audioSettings, patch: patchAudioSettings, reset: resetAudioSettings } = useGlobalAudio()
   const audio = useFootballAudio(audioSettings, {
     homeId: home.id,
     awayId: away.id,
     homeName: home.amharicName ?? home.name,
     awayName: away.amharicName ?? away.name,
-    stadiumName: home.stadium,
-    competition: 'Ethiopian Premier League',
+    stadiumName: world.venue.name,
+    competition: world.competition.name,
   })
   const commentaryCaption = audio.caption
   const commentarySupported = audio.speechSupported
-  const matchProgress = Math.min(1, score.time / 90)
 
   const clearPhaseTimers = useCallback(() => {
     if (phaseTimerRef.current !== null) window.clearTimeout(phaseTimerRef.current)
@@ -252,12 +281,12 @@ export function MatchView() {
     clearPhaseTimers()
     setRunning(false)
     setPresentationPhase('intro')
-    setMessage('Live from Addis Ababa')
+    setMessage(`Live from ${world.venue.name}`)
     audio.setSnapshot('pre-match', 0.35)
-    audio.emit('match-started', { scoreHome: score.home, scoreAway: score.away, importance: 0.7 })
+    audio.emit('match-started', { scoreHome: score.home, scoreAway: score.away, importance: world.competition.prestige })
     audio.announceWelcome()
     setCountdown(5)
-    audio.setCrowd({ intensity: 0.48, importance: 0.7, capacityRatio: 0.92, tension: 0.28 })
+    audio.setCrowd({ intensity: 0.48, importance: world.competition.prestige, capacityRatio: world.attendance.capacityRatio, tension: world.crowd.tension, derby: worldSelection.importance === 'derby' ? 1 : 0 })
     countdownTimerRef.current = window.setInterval(() => {
       setCountdown((current) => current === null ? null : Math.max(1, current - 1))
     }, 1000)
@@ -270,7 +299,7 @@ export function MatchView() {
       audio.emit('kickoff', { scoreHome: score.home, scoreAway: score.away, matchMinute: 0 })
       setRunning(true)
     }, INTRO_DURATION_MS)
-  }, [audio, clearPhaseTimers, score.away, score.home])
+  }, [audio, clearPhaseTimers, score.away, score.home, world.attendance.capacityRatio, world.competition.prestige, world.crowd.tension, world.venue.name, worldSelection.importance])
 
   const toggleMatch = useCallback(async () => {
     if (replayActive || completedRef.current) return
@@ -383,11 +412,11 @@ export function MatchView() {
     <div className="view-stack match-view phase-three-view phase-four-view">
       <section className="page-title-row">
         <div>
-          <span className="section-kicker">Human simulation upgrade · biomechanics, perception and physical contact</span>
-          <h1>Ethiopian Prime Match</h1>
-          <p>Independent human football agents with position-specific bodies, planted-foot locomotion, physical ball contact, utility-based decisions, natural imperfection, fatigue, emotional continuity, goalkeeper perception and camera-dependent digital-human detail.</p>
+          <span className="section-kicker">Living football world · competitions, venues, operations and atmosphere</span>
+          <h1>Ethiopian Football World</h1>
+          <p>Enter distinct competitions and Ethiopian venues with engineered surfaces, match-specific balls, dynamic attendance, intelligent supporter sections, active staff and benches, synchronized screens, cultural presentation, evolving weather and skippable ceremonies.</p>
         </div>
-        <div className="title-actions"><span className="prototype-badge phase-three-badge phase-four-badge"><span /> HUMAN SIM · 22 AGENTS</span></div>
+        <div className="title-actions"><span className="prototype-badge phase-three-badge phase-four-badge"><span /> LIVING WORLD · {world.competition.shortName}</span></div>
       </section>
 
       <section className="match-setup panel">
@@ -398,7 +427,7 @@ export function MatchView() {
           </select>
           <div className="mini-crest" style={{ '--club-a': home.colors[0], '--club-b': home.colors[1] } as CSSProperties}>{home.shortName}</div>
         </div>
-        <div className="match-versus"><small>PRIME BROADCAST</small><strong>VS</strong><span>Addis Ababa · 2,400 m</span></div>
+        <div className="match-versus"><small>{world.competition.broadcastStyle}</small><strong>VS</strong><span>{world.venue.city} · {world.venue.altitudeM.toLocaleString()} m</span></div>
         <div className="team-selector away">
           <span>AWAY</span>
           <select value={awayId} onChange={(event) => changeTeam('away', event)}>
@@ -408,10 +437,13 @@ export function MatchView() {
         </div>
       </section>
 
+      <WorldControlPanel selection={worldSelection} patchSelection={patchWorldSelection} world={world} disabled={running || replayActive || presentationPhase === 'intro'} />
+
       <section
         ref={shellRef}
-        className={`game-shell game-shell-3d phase-three-shell phase-four-shell quality-${quality} phase-${presentationPhase} ${replayActive ? 'is-replay' : ''} weather-${weather}`}
+        className={`game-shell game-shell-3d phase-three-shell phase-four-shell quality-${quality} phase-${presentationPhase} ${replayActive ? 'is-replay' : ''} weather-${weather} venue-${world.venue.archetype}`}
       >
+        <div className="world-broadcast-tag"><strong>{world.competition.shortName} · {world.venue.name}</strong><small>{world.surface.name} · {world.attendance.total.toLocaleString()} attendance · {world.phase}</small><div className="world-atmosphere-strip"><span>Grip {Math.round(world.pitch.grip * 100)}%</span><span>Crowd {Math.round(world.telemetry.crowdEnergy * 100)}%</span><span>{world.ball.name}</span></div></div>
         <div className="broadcast-scorebug phase-three-scorebug">
           <div className="broadcast-team"><i style={{ background: home.colors[0] }} />{home.shortName}</div>
           <strong>{score.home}</strong>
@@ -434,6 +466,9 @@ export function MatchView() {
         <MatchScene
           key={sceneKey}
           running={running}
+          homeName={home.shortName}
+          awayName={away.shortName}
+          world={world}
           homeColor={home.colors[0]}
           homeSecondaryColor={home.colors[1]}
           awayColor={away.colors[0]}
@@ -468,7 +503,7 @@ export function MatchView() {
                 <div className="cinematic-matchup">
                   <strong>{home.shortName}</strong><em>{countdown ?? 'LIVE'}</em><strong>{away.shortName}</strong>
                 </div>
-                <small>PRIME MATCH · ADDIS ABABA</small>
+                <small>{world.competition.name.toUpperCase()} · {world.venue.city.toUpperCase()}</small>
               </>
             )}
             {presentationPhase === 'halftime' && (
@@ -502,6 +537,7 @@ export function MatchView() {
             <div className="human-decision-grid">
               {Object.entries(humanTelemetry.activeDecisions).filter(([, count]) => count > 0).map(([action, count]) => <span key={action}><b>{count}</b>{action}</span>)}
             </div>
+            <div className="world-data-grid"><div><small>Attendance</small><b>{world.attendance.total.toLocaleString()}</b></div><div><small>Pitch grip</small><b>{Math.round(world.pitch.grip * 100)}%</b></div><div><small>Moisture</small><b>{Math.round(world.pitch.moisture * 100)}%</b></div><div><small>Divots</small><b>{Math.round(world.pitch.divots * 100)}%</b></div><div><small>Media</small><b>{world.staff.cameraOperators} cameras</b></div></div>
           </aside>
         )}
 
@@ -554,7 +590,7 @@ export function MatchView() {
 
         <div className="match-environment-controls phase-three-controls">
           <label>Difficulty<select value={difficulty} onChange={(event) => setDifficulty(event.target.value as Difficulty)}><option>Academy</option><option>Professional</option><option>Legendary</option></select></label>
-          <label>Light<select value={timeOfDay} onChange={(event) => setTimeOfDay(event.target.value as TimeOfDay)}><option value="dynamic">Dynamic match</option><option value="afternoon">Afternoon</option><option value="golden">Golden hour</option><option value="night">Night</option></select></label>
+          <label>Light<select value={timeOfDay} onChange={(event) => setTimeOfDay(event.target.value as TimeOfDay)}><option value="dynamic">Dynamic match</option><option value="dawn">Dawn</option><option value="morning">Morning</option><option value="midday">Midday</option><option value="afternoon">Afternoon</option><option value="golden">Golden hour</option><option value="sunset">Sunset</option><option value="evening">Evening</option><option value="night">Night</option><option value="late-night">Late night</option></select></label>
           <label>Graphics<select value={quality} onChange={(event) => setQuality(event.target.value as QualityLevel)}><option value="performance">Performance</option><option value="balanced">Balanced</option><option value="ultra">Ultra</option></select></label>
           <div className="weather-picker">
             <button className={weather === 'clear' ? 'active' : ''} onClick={() => setWeather('clear')} title="Clear"><Sun size={17} /></button>
@@ -562,6 +598,7 @@ export function MatchView() {
             <button className={weather === 'rain' ? 'active' : ''} onClick={() => setWeather('rain')} title="Rain"><CloudRain size={17} /></button>
             <button className={weather === 'wind' ? 'active' : ''} onClick={() => setWeather('wind')} title="Wind"><Wind size={17} /></button>
           </div>
+          <label>Weather type<select value={weather} onChange={(event) => setWeather(event.target.value as Weather)}><option value="clear">Clear</option><option value="overcast">Overcast</option><option value="rain">Rain</option><option value="wind">Wind</option><option value="storm">Thunderstorm</option><option value="fog">Fog</option><option value="snow">Snow</option><option value="heat">Extreme heat</option><option value="dust">Dust</option></select></label>
           <label className="range-control">Weather<input type="range" min="0.2" max="1" step="0.05" value={weatherIntensity} onChange={(event) => setWeatherIntensity(Number(event.target.value))} /></label>
           <button className={`sound-toggle ${audioSettings.enabled ? 'active' : ''}`} onClick={() => patchAudioSettings({ enabled: !audioSettings.enabled })} title="Toggle complete audio system">{audioSettings.enabled ? <Volume2 size={17} /> : <VolumeX size={17} />}</button>
           <label className="range-control volume-control">Master<input type="range" min="0" max="1" step="0.02" value={audioSettings.master} onChange={(event) => patchAudioSettings({ master: Number(event.target.value) })} /></label>
@@ -575,7 +612,7 @@ export function MatchView() {
       <div className="dashboard-grid three phase-three-stats">
         <article className="stat-panel panel"><Activity /><div><span>Human biomechanics runtime</span><strong>22 independent football agents</strong><small>Weight transfer, acceleration limits, turn radius, foot planting, surface traction, fatigue, balance and context-sensitive imperfection</small></div></article>
         <article className="stat-panel panel"><Shield /><div><span>Physical football intelligence</span><strong>Perception · utility AI · contact physics</strong><small>Passing lanes, pressure, support runs, marking, pressing, tackles, weak-foot errors and non-magnetic ball interaction</small></div></article>
-        <article className="stat-panel panel"><Trophy /><div><span>Digital-human presentation</span><strong>Faces · eyes · skin · sweat · cloth · hair</strong><small>Camera-dependent detail, non-repeating blink and scan behavior, emotional continuity, progressive wetness and fatigue-aware posture</small></div></article>
+        <article className="stat-panel panel"><Trophy /><div><span>Living match ecosystem</span><strong>{world.competition.name}</strong><small>{world.venue.architecture} {world.competition.visualIdentity}</small></div></article>
       </div>
 
       <AudioSettingsPanel settings={audioSettings} patch={patchAudioSettings} reset={resetAudioSettings} open={showAudioSettings} setOpen={setShowAudioSettings} />

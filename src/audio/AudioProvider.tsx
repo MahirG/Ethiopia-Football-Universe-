@@ -77,7 +77,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const emit = useCallback((event: FootballAudioEvent, payload: Omit<AudioEventContext, 'event'> = {}) => engine.emit({ event, ...payload }), [engine])
   const setSnapshot = useCallback((snapshot: AudioSnapshot, transition?: number) => engine.setSnapshot(snapshot, transition), [engine])
   const setCrowd = useCallback((state: Partial<CrowdState>) => engine.setCrowd(state), [engine])
-  const setWeather = useCallback((weather: Weather, intensity: number) => engine.setWeather(weather, intensity), [engine])
+  const setWeather = useCallback((weather: Weather, intensity: number) => engine.setWeather(weather === 'rain' || weather === 'wind' || weather === 'overcast' ? weather : 'clear', intensity), [engine])
 
   const value = useMemo(() => ({ settings, patch, reset, engine, profile, ensureStarted, emit, setSnapshot, setCrowd, setWeather }), [emit, engine, ensureStarted, patch, profile, reset, setCrowd, setSnapshot, setWeather, settings])
   return (

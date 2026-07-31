@@ -59,7 +59,7 @@ export function useFootballAudio(settings: AudioSettings, identity: MatchIdentit
 
   const setSnapshot = useCallback((snapshot: AudioSnapshot, transition?: number) => engine.setSnapshot(snapshot, transition), [engine])
   const setCrowd = useCallback((state: Partial<CrowdState>) => engine.setCrowd(state), [engine])
-  const setWeather = useCallback((weather: Weather, intensity: number) => engine.setWeather(weather, intensity), [engine])
+  const setWeather = useCallback((weather: Weather, intensity: number) => engine.setWeather(weather === 'rain' || weather === 'wind' || weather === 'overcast' ? weather : 'clear', intensity), [engine])
   const announceWelcome = useCallback(() => announce('announcer-welcome', context()), [announce, context])
   const announceResult = useCallback((homeScore: number, awayScore: number) => announce('announcer-result', context({ homeScore, awayScore })), [announce, context])
   const clearVoices = useCallback(() => commentary.clear(), [commentary])

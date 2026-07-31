@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "system": "Ethiopia Football Universe living world",
+  "competitionCount": 12,
+  "venueCount": 13,
+  "surfaceCount": 7,
+  "ballCount": 8,
+  "trophyCount": 6,
+  "competitionFormats": ["round-robin", "single-elimination", "double-elimination", "two-leg-knockout", "groups-knockout", "swiss", "mini-league", "split-league", "promotion-playoff", "best-of-series"],
+  "venueArchetypes": ["national-bowl", "modern-arena", "historic-ground", "athletics-stadium", "compact-urban", "community-ground", "rural-field", "university-ground", "training-centre", "street-court", "futsal-arena"],
+  "weatherStates": ["clear", "overcast", "rain", "wind", "storm", "fog", "snow", "heat", "dust"],
+  "timeOfDayStates": ["dawn", "morning", "midday", "afternoon", "golden", "sunset", "evening", "night", "late-night"],
+  "matchDayPhases": ["preparation", "arrival", "warmup", "tunnel", "entrance", "live", "halftime", "extra-time", "penalties", "fulltime", "ceremony", "cleanup"]
+}

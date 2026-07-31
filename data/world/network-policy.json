@@ -1,0 +1,6 @@
+{
+  "authoritative": ["ball-state", "match-clock", "pitch-condition", "weather", "referee-decisions", "stadium-screens", "ceremony-state", "tournament-progress"],
+  "replicatedSemanticEvents": ["goal", "card", "var", "substitution", "injury", "halftime", "fulltime", "trophy"],
+  "localSimulation": ["crowd-idle-animation", "flag-secondary-motion", "vendors", "ambient-traffic", "nonessential-media-movement"],
+  "rules": ["deduplicate-by-event-id", "interpolate-crowd-and-weather", "never-correct-ball-with-visible-teleport", "fairness-before-cinematics", "screens-follow-authoritative-clock"]
+}

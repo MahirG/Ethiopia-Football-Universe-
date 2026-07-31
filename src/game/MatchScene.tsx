@@ -15,6 +15,7 @@ import { SurfaceEffects } from './SurfaceEffects'
 import type { MatchAction, MatchSceneProps, TeamSide, TimeOfDay } from './types'
 import { useKeyboard } from './useKeyboard'
 import { createHumanWorld, updateHumanTelemetry, type HumanWorldBundle } from '../human/world'
+import { WorldLayer } from '../world/WorldLayer'
 import './phase4.css'
 import '../human/human.css'
 
@@ -26,8 +27,12 @@ function fixedTime(time: TimeOfDay, progress: number): FixedTime {
 }
 
 function lightState(time: FixedTime) {
-  if (time === 'night') return { bg: '#050b15', hemi: '#607695', ambient: 0.5, sun: '#aac5e7', power: 0.45, pos: [12, 38, 25] as [number, number, number], sky: [0, -2, 0] as [number, number, number] }
-  if (time === 'golden') return { bg: '#d98d60', hemi: '#f4c792', ambient: 1.08, sun: '#ffb866', power: 4.4, pos: [-50, 19, -28] as [number, number, number], sky: [-8, 1.5, -4] as [number, number, number] }
+  if (time === 'night' || time === 'late-night') return { bg: '#050b15', hemi: '#607695', ambient: 0.5, sun: '#aac5e7', power: 0.45, pos: [12, 38, 25] as [number, number, number], sky: [0, -2, 0] as [number, number, number] }
+  if (time === 'evening') return { bg: '#17233a', hemi: '#7788a2', ambient: 0.68, sun: '#d7dff1', power: 0.8, pos: [-24, 25, -30] as [number, number, number], sky: [-4, -1, 0] as [number, number, number] }
+  if (time === 'golden' || time === 'sunset') return { bg: '#d98d60', hemi: '#f4c792', ambient: 1.08, sun: '#ffb866', power: 4.4, pos: [-50, 19, -28] as [number, number, number], sky: [-8, 1.5, -4] as [number, number, number] }
+  if (time === 'dawn') return { bg: '#9b9fc4', hemi: '#d8c8ca', ambient: 0.92, sun: '#ffcfad', power: 2.2, pos: [-44, 13, 18] as [number, number, number], sky: [-8, 0.4, 2] as [number, number, number] }
+  if (time === 'morning') return { bg: '#a8d2ec', hemi: '#dcecff', ambient: 1.32, sun: '#ffe6bd', power: 3.2, pos: [-46, 34, 24] as [number, number, number], sky: [5, 2, 1] as [number, number, number] }
+  if (time === 'midday') return { bg: '#78bde9', hemi: '#e1f3ff', ambient: 1.65, sun: '#fff8df', power: 4.1, pos: [-8, 66, 12] as [number, number, number], sky: [2, 9, 0] as [number, number, number] }
   return { bg: '#8ec8ed', hemi: '#cfe7ff', ambient: 1.55, sun: '#fff3d4', power: 3.7, pos: [-38, 52, 22] as [number, number, number], sky: [7, 4, -3] as [number, number, number] }
 }
 
@@ -113,8 +118,9 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry,
     }
     previousVerticalSpeed.current = velocity.y
 
-    if (weather === 'wind') {
-      ball.applyImpulse({ x: 0, y: 0, z: Math.sin(state.clock.elapsedTime * 0.42) * 0.0032 * (0.4 + weatherIntensity) }, true)
+    if (weather === 'wind' || weather === 'storm') {
+      const windForce = props.world.telemetry.windExposure
+      ball.applyImpulse({ x: Math.sin(state.clock.elapsedTime * 0.31) * 0.0015 * windForce, y: 0, z: Math.sin(state.clock.elapsedTime * 0.42) * 0.0045 * (0.4 + weatherIntensity) * windForce }, true)
     }
 
     if (state.clock.elapsedTime - lastTelemetry.current > 0.45) {
@@ -173,7 +179,7 @@ export function MatchScene(props: MatchSceneProps) {
   const light = lightState(time)
   const handleAction = useCallback((action: MatchAction, team: TeamSide) => props.onAction(action, team), [props])
   const handleGoal = useCallback((team: TeamSide) => props.onGoal(team), [props])
-  const weatherBackground = props.weather === 'overcast' ? '#7f949d' : props.weather === 'rain' ? '#637780' : light.bg
+  const weatherBackground = props.weather === 'overcast' ? '#7f949d' : props.weather === 'rain' || props.weather === 'storm' ? '#637780' : props.weather === 'fog' ? '#aab1b0' : props.weather === 'snow' ? '#c8d4d8' : props.weather === 'dust' ? '#a9825d' : props.weather === 'heat' ? '#d7a46f' : light.bg
 
   return (
     <div className="phase4-match-stage human-simulation-stage">
@@ -185,16 +191,17 @@ export function MatchScene(props: MatchSceneProps) {
         gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: time === 'night' ? 0.86 : 1.04 }}
       >
         <color attach="background" args={[weatherBackground]} />
-        <fog attach="fog" args={[weatherBackground, props.weather === 'rain' ? 42 : 88, props.weather === 'rain' ? 130 : 230]} />
-        <Sky distance={230} sunPosition={light.sky} turbidity={props.weather === 'overcast' ? 18 : 8} rayleigh={props.weather === 'overcast' ? 0.6 : 1.4} mieCoefficient={props.weather === 'rain' ? 0.018 : 0.006} />
+        <fog attach="fog" args={[weatherBackground, props.weather === 'fog' ? 18 : props.weather === 'rain' || props.weather === 'storm' ? 42 : 88, props.weather === 'fog' ? 86 : props.weather === 'rain' || props.weather === 'storm' ? 130 : 230]} />
+        <Sky distance={230} sunPosition={light.sky} turbidity={props.weather === 'overcast' || props.weather === 'fog' || props.weather === 'dust' ? 18 : 8} rayleigh={props.weather === 'overcast' || props.weather === 'fog' ? 0.6 : 1.4} mieCoefficient={props.weather === 'rain' || props.weather === 'storm' || props.weather === 'fog' ? 0.018 : 0.006} />
         {preset.softShadows && <SoftShadows size={18} samples={14} focus={0.42} />}
         <hemisphereLight args={[light.hemi, '#163222', light.ambient]} />
         <directionalLight position={light.pos} color={light.sun} intensity={light.power} castShadow shadow-mapSize-width={preset.shadowMapSize} shadow-mapSize-height={preset.shadowMapSize} shadow-camera-left={-66} shadow-camera-right={66} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-far={125} shadow-bias={-0.00016} />
         <Suspense fallback={null}>
           <Physics gravity={[0, -9.81, 0]} paused={!props.running} timeStep={1 / 60} interpolate>
-            <Pitch weather={props.weather} quality={props.quality} eventPulse={props.replayToken} />
-            <Stadium timeOfDay={time} weather={props.weather} quality={props.quality} difficulty={props.difficulty} eventPulse={props.replayToken} />
-            <Football ref={ballRef} weather={props.weather} quality={props.quality} />
+            <Pitch weather={props.weather} quality={props.quality} eventPulse={props.replayToken} world={props.world} />
+            <Stadium timeOfDay={time} weather={props.weather} quality={props.quality} difficulty={props.difficulty} eventPulse={props.replayToken} world={props.world} />
+            <WorldLayer world={props.world} homeName={props.homeName} awayName={props.awayName} homeColor={props.homeColor} awayColor={props.awayColor} eventPulse={props.replayToken} />
+            <Football ref={ballRef} weather={props.weather} quality={props.quality} world={props.world} />
             {(['home', 'away'] as const).flatMap((team) => FORMATION.map(([x, z], index) => (
               <PlayerAvatar
                 key={`${team}-${index}`}
@@ -228,7 +235,7 @@ export function MatchScene(props: MatchSceneProps) {
           </Physics>
         </Suspense>
         <CinematicAtmosphere timeOfDay={props.timeOfDay} weather={props.weather} weatherIntensity={props.weatherIntensity} quality={props.quality} matchProgress={props.matchProgress} eventPulse={props.replayToken} presentationPhase={props.presentationPhase} />
-        {props.weather === 'rain' && <Rain count={Math.round(preset.rainDrops * (0.45 + props.weatherIntensity * 0.85))} intensity={props.weatherIntensity} />}
+        {(props.weather === 'rain' || props.weather === 'storm' || props.weather === 'snow') && <Rain count={Math.round(preset.rainDrops * (0.45 + props.weatherIntensity * 0.85))} intensity={props.weather === 'snow' ? props.weatherIntensity * 0.45 : props.weatherIntensity} />}
         <CameraRig mode={props.cameraMode} replayToken={props.replayToken} replayActive={props.replayActive} quality={props.quality} presentationPhase={props.presentationPhase} matchProgress={props.matchProgress} cameraShake={props.cameraShake} ballRef={ballRef} controlledPosition={controlledPosition} keyboard={keyboard} />
         <AdaptiveDpr pixelated={props.quality === 'performance'} />
       </Canvas>

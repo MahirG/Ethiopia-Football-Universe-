@@ -143,3 +143,10 @@ The club list is a structured research seed, not an assertion of official licens
 ## Legal
 
 This repository does not claim affiliation with the Ethiopian Football Federation, FIFA, CAF, any club, player, competition or sponsor. All third-party marks remain the property of their respective owners.
+
+
+## Living football world system
+
+The match now runs through a data-driven football-world layer with configurable competitions, tournament rules, Ethiopian venue archetypes, engineered surfaces, ball profiles, dynamic attendance, crowd groups and emotional memory, active benches and stadium staff, synchronized screens, match-day phases, cultural presentation, ceremonies, accessibility controls, world networking snapshots and automated validation. See `src/world/`, `data/world/` and `docs/world/`.
+
+Run `npm run world:validate` to validate the competition, venue, surface, ball, operations and network manifests.

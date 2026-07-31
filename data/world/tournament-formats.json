@@ -1,0 +1,15 @@
+{
+  "formats": [
+    {"id":"round-robin","supportsLegs":[1,2],"stages":["league"],"configurableTiebreakers":true},
+    {"id":"single-elimination","supportsLegs":[1,2],"stages":["qualifying","knockout","final"],"configurableTiebreakers":true},
+    {"id":"double-elimination","supportsLegs":[1],"stages":["winners-bracket","losers-bracket","grand-final"],"configurableTiebreakers":false},
+    {"id":"two-leg-knockout","supportsLegs":[2],"stages":["qualifying","knockout","final"],"configurableTiebreakers":true},
+    {"id":"groups-knockout","supportsLegs":[1,2],"stages":["groups","knockout","final"],"configurableTiebreakers":true},
+    {"id":"swiss","supportsLegs":[1],"stages":["swiss","playoff"],"configurableTiebreakers":true},
+    {"id":"mini-league","supportsLegs":[1,2],"stages":["mini-league"],"configurableTiebreakers":true},
+    {"id":"split-league","supportsLegs":[2],"stages":["regular","championship","relegation"],"configurableTiebreakers":true},
+    {"id":"promotion-playoff","supportsLegs":[1,2],"stages":["semifinal","final"],"configurableTiebreakers":true},
+    {"id":"best-of-series","supportsLegs":[1],"stages":["series"],"configurableTiebreakers":false}
+  ],
+  "schedulingConstraints": ["stadium-availability", "travel-time", "rest-period", "broadcast-window", "weather-risk", "security-risk", "rivalry-separation", "international-break", "geographic-restriction", "club-protection"]
+}

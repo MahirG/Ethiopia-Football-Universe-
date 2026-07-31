@@ -1,0 +1,14 @@
+{
+  "timeline": [
+    {"phase":"preparation","activities":["pitch-inspection","line-marking","watering","security-briefing","vendor-setup","broadcast-rigging"]},
+    {"phase":"arrival","activities":["team-buses","security-escort","equipment-unloading","media-arrival","supporter-gathering"]},
+    {"phase":"warmup","activities":["goalkeeper-drills","passing-circles","sprints","shooting","coach-observation"]},
+    {"phase":"tunnel","activities":["equipment-check","captain-greeting","player-focus","official-comms","announcer-introduction"]},
+    {"phase":"entrance","activities":["walkout","flags","handshakes","team-photo","coin-toss","optional-anthem"]},
+    {"phase":"halftime","activities":["divot-repair","substitute-warmup","tactical-briefing","medical-treatment","concourse-activity"]},
+    {"phase":"fulltime","activities":["handshakes","interviews","supporter-thanks","official-departure","cleanup"]},
+    {"phase":"ceremony","activities":["stage","medals","trophy-lift","photographers","confetti","optional-fireworks"]}
+  ],
+  "staffRoles": ["steward", "security", "police", "paramedic", "doctor", "ball-assistant", "groundskeeper", "camera-operator", "photographer", "journalist", "announcer", "vendor", "team-staff", "competition-official", "trophy-handler"],
+  "safetyPrinciples": ["segregated-away-section", "emergency-routes", "medical-access", "fire-safety", "crowd-flow", "reduced-pyro-option", "no-violence-glorification"]
+}
