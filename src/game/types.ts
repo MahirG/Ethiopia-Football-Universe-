@@ -6,7 +6,7 @@ export type TeamSide = 'home' | 'away'
 export type Difficulty = 'Academy' | 'Professional' | 'Legendary'
 export type QualityLevel = 'performance' | 'balanced' | 'ultra'
 export type PresentationPhase = 'idle' | 'intro' | 'live' | 'halftime' | 'fulltime'
-export type MatchAction = 'pass' | 'shot'
+export type MatchAction = 'pass' | 'shot' | 'save'
 
 export interface MatchTelemetry {
   homeTerritory: number
