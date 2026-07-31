@@ -1,17 +1,18 @@
 {
   "name": "ethiopia-football-universe",
   "private": true,
-  "version": "1.7.0",
+  "version": "1.8.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run audio:validate && npm run human:validate && npm run world:validate && tsc -b && vite build",
+    "build": "npm run audio:validate && npm run human:validate && npm run world:validate && npm run phase5:validate && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 0",
     "audio:validate": "node scripts/audio-validate.mjs",
     "human:validate": "node scripts/human-validate.mjs",
     "world:validate": "node scripts/world-validate.mjs",
-    "test": "npm run lint && npm run build"
+    "test": "npm run lint && npm run build",
+    "phase5:validate": "node scripts/phase5-validate.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.3",
