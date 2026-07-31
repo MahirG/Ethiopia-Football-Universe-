@@ -1,11 +1,7 @@
 name: Recover pending football updates
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/recover-pending-updates.yml
-  pull_request_target:
+  pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
 
@@ -18,7 +14,7 @@ concurrency:
 
 jobs:
   recover:
-    if: github.repository == 'MahirG/Ethiopia-Football-Universe-'
+    if: github.repository == 'MahirG/Ethiopia-Football-Universe-' && github.head_ref == 'agent/trigger-pending-recovery'
     runs-on: ubuntu-latest
     steps:
       - name: Check out complete repository history
@@ -36,30 +32,16 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git checkout -B agent/recovered-pending-updates origin/main
 
-          # Recover the universal controls package from its split transport files.
-          : > /tmp/universal-controls.b64
-          while IFS= read -r file; do
-            git show "origin/agent/universal-football-controls:${file}" >> /tmp/universal-controls.b64
-          done < <(git ls-tree -r --name-only origin/agent/universal-football-controls .github/control-patch | sort)
-          tr -d '[:space:]' < /tmp/universal-controls.b64 | base64 --decode > /tmp/universal-controls.patch
-          echo 'Recovered controls patch:'
-          sha256sum /tmp/universal-controls.patch
-          git apply --3way --index /tmp/universal-controls.patch
-          git commit -m 'Integrate universal cross-device football controls'
-
-          # Recover the completed authoritative core match engine.
           core_base="$(git merge-base origin/main origin/agent/aaa-core-match-gameplay-engine)"
           git diff --binary "${core_base}"..origin/agent/aaa-core-match-gameplay-engine > /tmp/core-engine.patch
           git apply --3way --index /tmp/core-engine.patch
           git commit -m 'Integrate authoritative core match engine'
 
-          # Recover the completed Phase 6 connected platform.
           phase6_base="$(git merge-base origin/main origin/agent/phase-6-connected-platform)"
           git diff --binary "${phase6_base}"..origin/agent/phase-6-connected-platform > /tmp/phase6.patch
           git apply --3way --index /tmp/phase6.patch
           git commit -m 'Integrate Phase 6 connected football platform'
 
-          # The recovery workflow is temporary and must not ship with the product branch.
           git rm .github/workflows/recover-pending-updates.yml
           git commit -m 'Remove temporary recovery workflow'
 
