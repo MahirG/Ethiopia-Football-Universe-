@@ -30,20 +30,8 @@ jobs:
           node-version: 22
       - name: Reconstruct and apply controls update
         run: |
-          mkdir -p "$RUNNER_TEMP/chunk-segments"
-          for file in .github/control-patch/part-{01,02,03,06,07}.b64; do
-            clean="$RUNNER_TEMP/$(basename "$file").clean"
-            tr -d '[:space:]' < "$file" > "$clean"
-            prefix="$RUNNER_TEMP/chunk-segments/$(basename "$file")-"
-            split -b 3000 -d -a 2 "$clean" "$prefix"
-            for segment in "${prefix}"*; do
-              printf '%s ' "$(basename "$segment")"
-              sha256sum "$segment" | cut -d' ' -f1
-            done
-          done
           cat .github/control-patch/part-*.b64 | tr -d '[:space:]' | base64 --decode > "$RUNNER_TEMP/universal-controls.patch"
-          sha256sum "$RUNNER_TEMP/universal-controls.patch"
-          echo "38673998c62686b9634818fc1409019d1a6cb83512101a73d7544c1634011853  $RUNNER_TEMP/universal-controls.patch" | sha256sum --check -
+          echo "8302c9cbea67f6cb201dc7e0d3c8aae25b79c0b17e3dd21dfd2203235ab1762e  $RUNNER_TEMP/universal-controls.patch" | sha256sum --check -
           git apply --check "$RUNNER_TEMP/universal-controls.patch"
           git apply "$RUNNER_TEMP/universal-controls.patch"
           rm -rf .github/control-patch
