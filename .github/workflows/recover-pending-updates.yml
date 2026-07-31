@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - .github/workflows/recover-pending-updates.yml
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
@@ -15,11 +18,13 @@ concurrency:
 
 jobs:
   recover:
+    if: github.repository == 'MahirG/Ethiopia-Football-Universe-'
     runs-on: ubuntu-latest
     steps:
       - name: Check out complete repository history
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Rebuild completed updates on current main
