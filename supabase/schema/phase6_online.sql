@@ -153,7 +153,7 @@ create policy "room host select" on public.efu_match_rooms for select to authent
 create policy "room host insert" on public.efu_match_rooms for insert to authenticated with check ((select auth.uid()) = host_owner_id);
 create policy "room host update" on public.efu_match_rooms for update to authenticated using ((select auth.uid()) = host_owner_id) with check ((select auth.uid()) = host_owner_id);
 
-create policy "participant room select" on public.efu_match_participants for select to authenticated using (exists (select 1 from public.efu_match_participants own where own.room_id = room_id and own.owner_id = (select auth.uid())));
+create policy "participant owner select" on public.efu_match_participants for select to authenticated using ((select auth.uid()) = owner_id);
 create policy "participant owner insert" on public.efu_match_participants for insert to authenticated with check ((select auth.uid()) = owner_id);
 create policy "participant owner update" on public.efu_match_participants for update to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id);
 
