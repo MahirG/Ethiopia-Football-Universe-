@@ -73,6 +73,14 @@ jobs:
           PY
           bash /tmp/finalize-universal-controls.sh
 
+      - name: Inspect generated integration source
+        shell: bash
+        run: |
+          echo '=== useUniversalInput.ts 145-180 ==='
+          nl -ba src/input/useUniversalInput.ts | sed -n '145,180p'
+          echo '=== MatchScene.tsx 245-295 ==='
+          nl -ba src/game/MatchScene.tsx | sed -n '245,295p'
+
       - name: Install dependencies
         run: npm install
 
