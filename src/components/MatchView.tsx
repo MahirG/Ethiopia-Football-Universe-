@@ -302,9 +302,15 @@ export function MatchView() {
       setCountdown(null)
       setPresentationPhase('live')
       setMessage('Kick-off')
-      audio.setSnapshot('normal-match', 0.28)
-      audio.emit('kickoff', { scoreHome: score.home, scoreAway: score.away, matchMinute: 0 })
       setRunning(true)
+      window.setTimeout(() => {
+        try {
+          audio.setSnapshot('normal-match', 0.28)
+          audio.emit('kickoff', { scoreHome: score.home, scoreAway: score.away, matchMinute: 0 })
+        } catch (error) {
+          console.error('[kickoff-audio] Non-fatal audio failure', error)
+        }
+      }, 0)
     }, INTRO_DURATION_MS)
   }, [audio, clearPhaseTimers, score.away, score.home, world.attendance.capacityRatio, world.competition.prestige, world.crowd.tension, world.venue.name, worldSelection.importance])
 
@@ -323,9 +329,15 @@ export function MatchView() {
     await audio.ensureStarted()
     setPresentationPhase('live')
     setMessage(score.time > 0 ? 'Match resumed' : 'Kick-off')
-    if (score.time === 0) audio.emit('kickoff', { scoreHome: score.home, scoreAway: score.away, matchMinute: 0 })
-    audio.setSnapshot('normal-match', 0.3)
     setRunning(true)
+    window.setTimeout(() => {
+      try {
+        if (score.time === 0) audio.emit('kickoff', { scoreHome: score.home, scoreAway: score.away, matchMinute: 0 })
+        audio.setSnapshot('normal-match', 0.3)
+      } catch (error) {
+        console.error('[match-resume-audio] Non-fatal audio failure', error)
+      }
+    }, 0)
   }, [audio, presentationPhase, replayActive, running, score.away, score.home, score.time, startOpeningSequence])
 
   useEffect(() => () => {
@@ -362,10 +374,16 @@ export function MatchView() {
       if (completedRef.current) return
       setPresentationPhase('live')
       setMessage('Second half')
-      audio.emit('second-half', { scoreHome: score.home, scoreAway: score.away, matchMinute: 45 })
-      audio.setSnapshot('normal-match', 0.35)
       setRunning(true)
-      audio.setCrowd({ intensity: 0.44, tension: 0.36 })
+      window.setTimeout(() => {
+        try {
+          audio.emit('second-half', { scoreHome: score.home, scoreAway: score.away, matchMinute: 45 })
+          audio.setSnapshot('normal-match', 0.35)
+          audio.setCrowd({ intensity: 0.44, tension: 0.36 })
+        } catch (error) {
+          console.error('[second-half-audio] Non-fatal audio failure', error)
+        }
+      }, 0)
     }, HALFTIME_DURATION_MS)
   }, [audio, presentationPhase, score.away, score.home, score.time])
 
