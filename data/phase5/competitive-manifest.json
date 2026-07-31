@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "phase": "competitive-match-intelligence",
+  "tacticalPresets": 6,
+  "refereeProfiles": 4,
+  "setPieceRoutines": 14,
+  "restartTypes": ["kickoff", "throw-in", "corner", "goal-kick", "direct-free-kick", "indirect-free-kick", "penalty", "drop-ball"],
+  "varReviewTypes": ["goal", "penalty", "red-card", "mistaken-identity", "offside"],
+  "authoritativeDomains": ["ball", "clock", "offside", "fouls", "cards", "var", "restarts", "score"]
+}

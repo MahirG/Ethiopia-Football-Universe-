@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "legalPolicy": "External assets must be licensed and registered before production activation.",
+  "runtimeFallback": "Original procedural web assets remain mandatory and crash-safe.",
+  "slots": 9,
+  "tiers": ["procedural", "production-ready", "cinematic"],
+  "formats": ["glb", "gltf", "fbx", "ktx2", "basis", "json"],
+  "compression": ["Draco or Meshopt geometry", "KTX2/Basis Universal textures", "quantized animation tracks"],
+  "forbidden": ["unlicensed player likenesses", "ripped game assets", "unauthorized stadium scans", "copyrighted broadcast packages"]
+}
