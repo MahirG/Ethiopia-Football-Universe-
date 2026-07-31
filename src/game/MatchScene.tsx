@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useMemo, useRef } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdaptiveDpr, Sky, SoftShadows } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Physics, type RapierRigidBody } from '@react-three/rapier'
@@ -6,7 +6,7 @@ import * as THREE from 'three'
 import { Football } from './Ball'
 import { CameraRig } from './CameraRig'
 import { CinematicAtmosphere } from './CinematicAtmosphere'
-import { FORMATION, GOAL_HEIGHT, GOAL_WIDTH, HALF_LENGTH, HALF_WIDTH, PLAYER_HEIGHT } from './config'
+import { FORMATION, HALF_LENGTH, PLAYER_HEIGHT } from './config'
 import { Pitch } from './Pitch'
 import { PlayerAvatar } from './PlayerAvatar'
 import { QUALITY_PRESETS } from './quality'
@@ -16,8 +16,12 @@ import type { MatchAction, MatchSceneProps, TeamSide, TimeOfDay } from './types'
 import { useKeyboard } from './useKeyboard'
 import { createHumanWorld, updateHumanTelemetry, type HumanWorldBundle } from '../human/world'
 import { WorldLayer } from '../world/WorldLayer'
+import { CompetitiveMatchDirector } from '../phase5/engine'
+import { MatchIntelligenceLayer } from '../phase5/MatchIntelligenceLayer'
+import type { CompetitiveMatchState, Phase5BallContact, Phase5FoulContact } from '../phase5/types'
 import './phase4.css'
 import '../human/human.css'
+import '../phase5/phase5.css'
 
 type FixedTime = Exclude<TimeOfDay, 'dynamic'>
 
@@ -53,12 +57,7 @@ function Rain({ count, intensity }: { count: number; intensity: number }) {
     ref.current.position.x -= delta * 3
     if (ref.current.position.y < -38) ref.current.position.set(0, 0, 0)
   })
-  return (
-    <points ref={ref} frustumCulled={false}>
-      <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /></bufferGeometry>
-      <pointsMaterial color="#d8e9f4" size={0.05 + intensity * 0.035} transparent opacity={0.3 + intensity * 0.4} depthWrite={false} />
-    </points>
-  )
+  return <points ref={ref} frustumCulled={false}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /></bufferGeometry><pointsMaterial color="#d8e9f4" size={0.05 + intensity * 0.035} transparent opacity={0.3 + intensity * 0.4} depthWrite={false} /></points>
 }
 
 interface RuntimeProps extends MatchSceneProps {
@@ -66,29 +65,36 @@ interface RuntimeProps extends MatchSceneProps {
   controlledPosition: { current: THREE.Vector3 }
   scoreGoal: (team: TeamSide) => void
   humanWorld: HumanWorldBundle
+  director: CompetitiveMatchDirector
+  setCompetitiveState: (state: CompetitiveMatchState) => void
 }
 
-function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry, weather, weatherIntensity, matchProgress, humanWorld, ...props }: RuntimeProps) {
-  const cooldown = useRef(0)
+function Runtime({ ballRef, controlledPosition, scoreGoal, onTelemetry, weather, weatherIntensity, matchProgress, humanWorld, director, setCompetitiveState, ...props }: RuntimeProps) {
   const lastTelemetry = useRef(0)
   const lastPlayer = useRef(controlledPosition.current.clone())
   const distance = useRef(0)
   const rollCooldown = useRef(0)
   const previousVerticalSpeed = useRef(0)
   const humanTelemetryCooldown = useRef(0)
+  const competitiveTelemetryCooldown = useRef(0)
+  const lastManualRequest = useRef(0)
+  const ballPosition = useMemo(() => new THREE.Vector3(), [])
+  const ballVelocity = useMemo(() => new THREE.Vector3(), [])
 
   useFrame((state, delta) => {
     const ball = ballRef.current
     if (!ball) return
-    cooldown.current = Math.max(0, cooldown.current - delta)
     rollCooldown.current = Math.max(0, rollCooldown.current - delta)
     humanTelemetryCooldown.current -= delta
+    competitiveTelemetryCooldown.current -= delta
     const position = ball.translation()
     const velocity = ball.linvel()
     const angularVelocity = ball.angvel()
+    ballPosition.set(position.x, position.y, position.z)
+    ballVelocity.set(velocity.x, velocity.y, velocity.z)
 
-    humanWorld.world.ballPosition.set(position.x, position.y, position.z)
-    humanWorld.world.ballVelocity.set(velocity.x, velocity.y, velocity.z)
+    humanWorld.world.ballPosition.copy(ballPosition)
+    humanWorld.world.ballVelocity.copy(ballVelocity)
     humanWorld.world.matchProgress = matchProgress
     humanWorld.world.weather = weather
     humanWorld.world.weatherIntensity = weatherIntensity
@@ -96,26 +102,51 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry,
     humanWorld.world.scoreAway = props.scoreAway
     humanWorld.world.eventPulse = props.replayToken
 
+    if (props.manualRestartRequest && props.manualRestartRequest.id !== lastManualRequest.current) {
+      lastManualRequest.current = props.manualRestartRequest.id
+      director.requestManual(props.manualRestartRequest, matchProgress * 90)
+    }
+
+    const competitiveResult = director.tick({
+      now: state.clock.elapsedTime,
+      delta,
+      matchMinute: matchProgress * 90,
+      difficulty: props.difficulty,
+      quality: props.quality,
+      scoreHome: props.scoreHome,
+      scoreAway: props.scoreAway,
+      running: props.running,
+      ballPosition,
+      ballVelocity,
+      players: humanWorld.world.players,
+    })
+
+    for (const directive of competitiveResult.directives) {
+      if (directive.position) ball.setTranslation({ x: directive.position[0], y: directive.position[1], z: directive.position[2] }, true)
+      if (directive.type === 'freeze' || directive.type === 'place') {
+        ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
+        ball.setAngvel({ x: 0, y: 0, z: 0 }, true)
+      }
+      if (directive.type === 'impulse' && directive.impulse) {
+        ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
+        ball.applyImpulse({ x: directive.impulse[0], y: directive.impulse[1], z: directive.impulse[2] }, true)
+        if (directive.torque) ball.applyTorqueImpulse({ x: directive.torque[0], y: directive.torque[1], z: directive.torque[2] }, true)
+      }
+    }
+    for (const event of competitiveResult.events) {
+      props.onCompetitiveEvent(event)
+      props.onEvent(event.message)
+      if (event.type === 'goal-confirmed' && event.team) scoreGoal(event.team)
+    }
+
     distance.current += controlledPosition.current.distanceTo(lastPlayer.current)
     lastPlayer.current.copy(controlledPosition.current)
     const planarSpeed = Math.hypot(velocity.x, velocity.z)
     if (planarSpeed > 0.8 && position.y < 0.5 && rollCooldown.current === 0) {
-      props.onAudioEvent('ball-roll', {
-        position: [position.x, position.y, position.z],
-        speed: planarSpeed,
-        spin: Math.hypot(angularVelocity.x, angularVelocity.y, angularVelocity.z),
-        wetness: weather === 'rain' ? weatherIntensity : 0,
-        camera: props.cameraMode,
-      })
+      props.onAudioEvent('ball-roll', { position: [position.x, position.y, position.z], speed: planarSpeed, spin: Math.hypot(angularVelocity.x, angularVelocity.y, angularVelocity.z), wetness: weather === 'rain' ? weatherIntensity : 0, camera: props.cameraMode })
       rollCooldown.current = 0.34
     }
-    if (previousVerticalSpeed.current < -1.8 && velocity.y > 0.25 && position.y < 0.7) {
-      props.onAudioEvent('ball-bounce', {
-        position: [position.x, position.y, position.z],
-        force: Math.min(1, Math.abs(previousVerticalSpeed.current) / 8),
-        wetness: weather === 'rain' ? weatherIntensity : 0,
-      })
-    }
+    if (previousVerticalSpeed.current < -1.8 && velocity.y > 0.25 && position.y < 0.7) props.onAudioEvent('ball-bounce', { position: [position.x, position.y, position.z], force: Math.min(1, Math.abs(previousVerticalSpeed.current) / 8), wetness: weather === 'rain' ? weatherIntensity : 0 })
     previousVerticalSpeed.current = velocity.y
 
     if (weather === 'wind' || weather === 'storm') {
@@ -127,41 +158,18 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry,
       lastTelemetry.current = state.clock.elapsedTime
       const home = THREE.MathUtils.clamp(50 + (position.x / HALF_LENGTH) * 28, 18, 82)
       const controlledRuntime = humanWorld.world.players.find((player) => player.id === 'home-9')
-      onTelemetry({
-        homeTerritory: Math.round(home),
-        awayTerritory: Math.round(100 - home),
-        ballSpeed: Math.round(Math.hypot(velocity.x, velocity.y, velocity.z) * 36) / 10,
-        controlledDistance: Math.round(distance.current * 10) / 10,
-        stamina: Math.round((1 - (controlledRuntime?.physical.fatigue ?? matchProgress * 0.5)) * 100),
-      })
+      onTelemetry({ homeTerritory: Math.round(home), awayTerritory: Math.round(100 - home), ballSpeed: Math.round(Math.hypot(velocity.x, velocity.y, velocity.z) * 36) / 10, controlledDistance: Math.round(distance.current * 10) / 10, stamina: Math.round((1 - (controlledRuntime?.physical.fatigue ?? matchProgress * 0.5)) * 100) })
     }
-
     if (humanTelemetryCooldown.current <= 0) {
       updateHumanTelemetry(humanWorld)
       props.onHumanTelemetry({ ...humanWorld.telemetry, activeDecisions: { ...humanWorld.telemetry.activeDecisions } })
       humanTelemetryCooldown.current = 0.5
     }
-
-    const mouth = Math.abs(position.z) < GOAL_WIDTH / 2 && position.y < GOAL_HEIGHT
-    if (cooldown.current === 0 && mouth && Math.abs(position.x) > HALF_LENGTH + 0.35) {
-      const team = position.x > 0 ? 'home' : 'away'
-      props.onAudioEvent('net-hit', {
-        team,
-        position: [position.x, position.y, position.z],
-        force: Math.min(1, Math.hypot(velocity.x, velocity.y, velocity.z) / 18),
-      })
-      scoreGoal(team)
-      onEvent(team === 'home' ? 'GOAL — home side!' : 'GOAL — away side!')
-      ball.setTranslation({ x: 0, y: 0.28, z: 0 }, true)
-      ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
-      ball.setAngvel({ x: 0, y: 0, z: 0 }, true)
-      cooldown.current = 1.5
-    } else if (Math.abs(position.x) > HALF_LENGTH + 5 || Math.abs(position.z) > HALF_WIDTH + 5 || position.y < -2) {
-      ball.setTranslation({ x: 0, y: 0.28, z: 0 }, true)
-      ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
-      ball.setAngvel({ x: 0, y: 0, z: 0 }, true)
-      props.onAudioEvent('ball-kicked', { position: [0, 0.28, 0], force: 0.4 })
-      onEvent('Restart from midfield')
+    if (competitiveResult.changed || competitiveTelemetryCooldown.current <= 0) {
+      const snapshot = director.snapshot()
+      setCompetitiveState(snapshot)
+      props.onCompetitiveState(snapshot)
+      competitiveTelemetryCooldown.current = 0.2
     }
   })
   return null
@@ -172,73 +180,56 @@ export function MatchScene(props: MatchSceneProps) {
   const ballRef = useRef<RapierRigidBody>(null)
   const controlledPosition = useRef(new THREE.Vector3(FORMATION[9][0], PLAYER_HEIGHT / 2, FORMATION[9][1]))
   const humanWorldRef = useRef<HumanWorldBundle | null>(null)
+  const directorRef = useRef<CompetitiveMatchDirector | null>(null)
   if (!humanWorldRef.current) humanWorldRef.current = createHumanWorld(props.weather, props.weatherIntensity)
+  if (!directorRef.current) directorRef.current = new CompetitiveMatchDirector(props.competitiveSettings)
   const humanWorld = humanWorldRef.current
+  const director = directorRef.current
+  const [competitiveState, setCompetitiveState] = useState(() => director.snapshot())
+  useEffect(() => director.updateSettings(props.competitiveSettings), [director, props.competitiveSettings])
+
   const preset = QUALITY_PRESETS[props.quality]
   const time = fixedTime(props.timeOfDay, props.matchProgress)
   const light = lightState(time)
   const handleAction = useCallback((action: MatchAction, team: TeamSide) => props.onAction(action, team), [props])
   const handleGoal = useCallback((team: TeamSide) => props.onGoal(team), [props])
+  const handleBallContact = useCallback((contact: Phase5BallContact) => director.registerContact(contact, humanWorld.world.players, props.matchProgress * 90), [director, humanWorld, props.matchProgress])
+  const handleFoul = useCallback((contact: Phase5FoulContact) => {
+    const translation = ballRef.current?.translation()
+    const velocity = ballRef.current?.linvel()
+    director.registerFoul(contact, {
+      matchMinute: props.matchProgress * 90,
+      possession: director.snapshot().possession,
+      ballPosition: new THREE.Vector3(translation?.x ?? 0, translation?.y ?? 0.22, translation?.z ?? 0),
+      ballVelocity: new THREE.Vector3(velocity?.x ?? 0, velocity?.y ?? 0, velocity?.z ?? 0),
+    })
+  }, [director, props.matchProgress])
   const weatherBackground = props.weather === 'overcast' ? '#7f949d' : props.weather === 'rain' || props.weather === 'storm' ? '#637780' : props.weather === 'fog' ? '#aab1b0' : props.weather === 'snow' ? '#c8d4d8' : props.weather === 'dust' ? '#a9825d' : props.weather === 'heat' ? '#d7a46f' : light.bg
 
-  return (
-    <div className="phase4-match-stage human-simulation-stage">
-      <Canvas
-        className="match-canvas"
-        shadows
-        dpr={preset.dpr}
-        camera={{ position: [0, 26, 38], fov: 45, near: 0.1, far: 280 }}
-        gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: time === 'night' ? 0.86 : 1.04 }}
-      >
-        <color attach="background" args={[weatherBackground]} />
-        <fog attach="fog" args={[weatherBackground, props.weather === 'fog' ? 18 : props.weather === 'rain' || props.weather === 'storm' ? 42 : 88, props.weather === 'fog' ? 86 : props.weather === 'rain' || props.weather === 'storm' ? 130 : 230]} />
-        <Sky distance={230} sunPosition={light.sky} turbidity={props.weather === 'overcast' || props.weather === 'fog' || props.weather === 'dust' ? 18 : 8} rayleigh={props.weather === 'overcast' || props.weather === 'fog' ? 0.6 : 1.4} mieCoefficient={props.weather === 'rain' || props.weather === 'storm' || props.weather === 'fog' ? 0.018 : 0.006} />
-        {preset.softShadows && <SoftShadows size={18} samples={14} focus={0.42} />}
-        <hemisphereLight args={[light.hemi, '#163222', light.ambient]} />
-        <directionalLight position={light.pos} color={light.sun} intensity={light.power} castShadow shadow-mapSize-width={preset.shadowMapSize} shadow-mapSize-height={preset.shadowMapSize} shadow-camera-left={-66} shadow-camera-right={66} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-far={125} shadow-bias={-0.00016} />
-        <Suspense fallback={null}>
-          <Physics gravity={[0, -9.81, 0]} paused={!props.running} timeStep={1 / 60} interpolate>
-            <Pitch weather={props.weather} quality={props.quality} eventPulse={props.replayToken} world={props.world} />
-            <Stadium timeOfDay={time} weather={props.weather} quality={props.quality} difficulty={props.difficulty} eventPulse={props.replayToken} world={props.world} />
-            <WorldLayer world={props.world} homeName={props.homeName} awayName={props.awayName} homeColor={props.homeColor} awayColor={props.awayColor} eventPulse={props.replayToken} />
-            <Football ref={ballRef} weather={props.weather} quality={props.quality} world={props.world} />
-            {(['home', 'away'] as const).flatMap((team) => FORMATION.map(([x, z], index) => (
-              <PlayerAvatar
-                key={`${team}-${index}`}
-                index={index}
-                team={team}
-                position={team === 'home' ? [x, PLAYER_HEIGHT / 2, z] : [-x, PLAYER_HEIGHT / 2, -z]}
-                color={team === 'home' ? props.homeColor : props.awayColor}
-                secondaryColor={team === 'home' ? props.homeSecondaryColor : props.awaySecondaryColor}
-                controlled={team === 'home' && index === 9}
-                running={props.running && props.cameraMode !== 'free' && !props.replayActive}
-                difficulty={props.difficulty}
-                quality={props.quality}
-                keyboard={keyboard}
-                ballRef={ballRef}
-                controlledPosition={controlledPosition}
-                matchProgress={props.matchProgress}
-                presentationPhase={props.presentationPhase}
-                celebrationTeam={props.celebrationTeam}
-                weather={props.weather}
-                weatherIntensity={props.weatherIntensity}
-                scoreHome={props.scoreHome}
-                scoreAway={props.scoreAway}
-                humanWorld={humanWorld}
-                onEvent={props.onEvent}
-                onAction={handleAction}
-                onSoundEvent={props.onAudioEvent}
-              />
-            )))}
-            <SurfaceEffects ballRef={ballRef} controlledPosition={controlledPosition} quality={props.quality} weather={props.weather} />
-            <Runtime {...props} scoreGoal={handleGoal} ballRef={ballRef} controlledPosition={controlledPosition} humanWorld={humanWorld} />
-          </Physics>
-        </Suspense>
-        <CinematicAtmosphere timeOfDay={props.timeOfDay} weather={props.weather} weatherIntensity={props.weatherIntensity} quality={props.quality} matchProgress={props.matchProgress} eventPulse={props.replayToken} presentationPhase={props.presentationPhase} />
-        {(props.weather === 'rain' || props.weather === 'storm' || props.weather === 'snow') && <Rain count={Math.round(preset.rainDrops * (0.45 + props.weatherIntensity * 0.85))} intensity={props.weather === 'snow' ? props.weatherIntensity * 0.45 : props.weatherIntensity} />}
-        <CameraRig mode={props.cameraMode} replayToken={props.replayToken} replayActive={props.replayActive} quality={props.quality} presentationPhase={props.presentationPhase} matchProgress={props.matchProgress} cameraShake={props.cameraShake} ballRef={ballRef} controlledPosition={controlledPosition} keyboard={keyboard} />
-        <AdaptiveDpr pixelated={props.quality === 'performance'} />
-      </Canvas>
-    </div>
-  )
+  return <div className="phase5-match-stage human-simulation-stage">
+    <Canvas className="match-canvas" shadows dpr={preset.dpr} camera={{ position: [0, 26, 38], fov: 45, near: 0.1, far: 280 }} gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: time === 'night' ? 0.86 : 1.04 }}>
+      <color attach="background" args={[weatherBackground]} />
+      <fog attach="fog" args={[weatherBackground, props.weather === 'fog' ? 18 : props.weather === 'rain' || props.weather === 'storm' ? 42 : 88, props.weather === 'fog' ? 86 : props.weather === 'rain' || props.weather === 'storm' ? 130 : 230]} />
+      <Sky distance={230} sunPosition={light.sky} turbidity={props.weather === 'overcast' || props.weather === 'fog' || props.weather === 'dust' ? 18 : 8} rayleigh={props.weather === 'overcast' || props.weather === 'fog' ? 0.6 : 1.4} mieCoefficient={props.weather === 'rain' || props.weather === 'storm' || props.weather === 'fog' ? 0.018 : 0.006} />
+      {preset.softShadows && <SoftShadows size={18} samples={14} focus={0.42} />}
+      <hemisphereLight args={[light.hemi, '#163222', light.ambient]} />
+      <directionalLight position={light.pos} color={light.sun} intensity={light.power} castShadow shadow-mapSize-width={preset.shadowMapSize} shadow-mapSize-height={preset.shadowMapSize} shadow-camera-left={-66} shadow-camera-right={66} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-far={125} shadow-bias={-0.00016} />
+      <Suspense fallback={null}>
+        <Physics gravity={[0, -9.81, 0]} paused={!props.running} timeStep={1 / 60} interpolate>
+          <Pitch weather={props.weather} quality={props.quality} eventPulse={props.replayToken} world={props.world} />
+          <Stadium timeOfDay={time} weather={props.weather} quality={props.quality} difficulty={props.difficulty} eventPulse={props.replayToken} world={props.world} />
+          <WorldLayer world={props.world} homeName={props.homeName} awayName={props.awayName} homeColor={props.homeColor} awayColor={props.awayColor} eventPulse={props.replayToken} />
+          <MatchIntelligenceLayer state={competitiveState} settings={props.competitiveSettings} />
+          <Football ref={ballRef} weather={props.weather} quality={props.quality} world={props.world} />
+          {(['home', 'away'] as const).flatMap((team) => FORMATION.map(([x, z], index) => <PlayerAvatar key={`${team}-${index}`} index={index} team={team} position={team === 'home' ? [x, PLAYER_HEIGHT / 2, z] : [-x, PLAYER_HEIGHT / 2, -z]} color={team === 'home' ? props.homeColor : props.awayColor} secondaryColor={team === 'home' ? props.homeSecondaryColor : props.awaySecondaryColor} controlled={team === 'home' && index === 9} running={props.running && props.cameraMode !== 'free' && !props.replayActive} difficulty={props.difficulty} quality={props.quality} keyboard={keyboard} ballRef={ballRef} controlledPosition={controlledPosition} matchProgress={props.matchProgress} presentationPhase={props.presentationPhase} celebrationTeam={props.celebrationTeam} weather={props.weather} weatherIntensity={props.weatherIntensity} scoreHome={props.scoreHome} scoreAway={props.scoreAway} humanWorld={humanWorld} competitiveState={competitiveState} competitiveSettings={props.competitiveSettings} onBallContact={handleBallContact} onFoul={handleFoul} onEvent={props.onEvent} onAction={handleAction} onSoundEvent={props.onAudioEvent} />))}
+          <SurfaceEffects ballRef={ballRef} controlledPosition={controlledPosition} quality={props.quality} weather={props.weather} />
+          <Runtime {...props} scoreGoal={handleGoal} ballRef={ballRef} controlledPosition={controlledPosition} humanWorld={humanWorld} director={director} setCompetitiveState={setCompetitiveState} />
+        </Physics>
+      </Suspense>
+      <CinematicAtmosphere timeOfDay={props.timeOfDay} weather={props.weather} weatherIntensity={props.weatherIntensity} quality={props.quality} matchProgress={props.matchProgress} eventPulse={props.replayToken} presentationPhase={props.presentationPhase} />
+      {(props.weather === 'rain' || props.weather === 'storm' || props.weather === 'snow') && <Rain count={Math.round(preset.rainDrops * (0.45 + props.weatherIntensity * 0.85))} intensity={props.weather === 'snow' ? props.weatherIntensity * 0.45 : props.weatherIntensity} />}
+      <CameraRig mode={props.cameraMode} replayToken={props.replayToken} replayActive={props.replayActive} quality={props.quality} presentationPhase={props.presentationPhase} matchProgress={props.matchProgress} cameraShake={props.cameraShake} ballRef={ballRef} controlledPosition={controlledPosition} keyboard={keyboard} />
+      <AdaptiveDpr pixelated={props.quality === 'performance'} />
+    </Canvas>
+  </div>
 }
