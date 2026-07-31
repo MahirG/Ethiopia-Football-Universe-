@@ -1,5 +1,5 @@
-export type Weather = 'clear' | 'overcast' | 'rain' | 'wind'
-export type TimeOfDay = 'dynamic' | 'afternoon' | 'golden' | 'night'
+export type Weather = 'clear' | 'overcast' | 'rain' | 'wind' | 'storm' | 'fog' | 'snow' | 'heat' | 'dust'
+export type TimeOfDay = 'dynamic' | 'dawn' | 'morning' | 'midday' | 'afternoon' | 'golden' | 'sunset' | 'evening' | 'night' | 'late-night'
 export type LiveCameraMode = 'broadcast' | 'auto' | 'follow' | 'ball' | 'free'
 export type CameraMode = LiveCameraMode | 'replay'
 export type TeamSide = 'home' | 'away'
@@ -16,13 +16,14 @@ export interface MatchTelemetry {
   stamina: number
 }
 
-
 export interface MatchSceneProps {
   running: boolean
   homeColor: string
   homeSecondaryColor: string
   awayColor: string
   awaySecondaryColor: string
+  homeName: string
+  awayName: string
   weather: Weather
   weatherIntensity: number
   timeOfDay: TimeOfDay
@@ -37,6 +38,7 @@ export interface MatchSceneProps {
   cameraShake: boolean
   scoreHome: number
   scoreAway: number
+  world: import('../world/types').MatchWorldState
   onGoal: (team: TeamSide) => void
   onEvent: (message: string) => void
   onAction: (action: MatchAction, team: TeamSide) => void
