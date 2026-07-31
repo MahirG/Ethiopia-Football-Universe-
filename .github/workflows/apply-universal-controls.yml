@@ -28,14 +28,38 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Reconstruct and repair controls update
+      - name: Reconstruct and normalize controls update
         run: |
-          cat .github/control-patch/part-*.b64 | tr -d '[:space:]' | base64 --decode > "$RUNNER_TEMP/universal-controls.patch"
-          echo "8302c9cbea67f6cb201dc7e0d3c8aae25b79c0b17e3dd21dfd2203235ab1762e  $RUNNER_TEMP/universal-controls.patch" | sha256sum --check -
-          sed -i \
-            -e 's/requestFulscreen/requestFullscreen/g' \
-            -e 's#<span>B SKILL/span>#<span>B SKILL</span>#g' \
-            "$RUNNER_TEMP/universal-controls.patch"
+          cat .github/control-patch/part-*.b64 | tr -d '[:space:]' | base64 --decode > "$RUNNER_TEMP/universal-controls.raw.patch"
+          echo "8302c9cbea67f6cb201dc7e0d3c8aae25b79c0b17e3dd21dfd2203235ab1762e  $RUNNER_TEMP/universal-controls.raw.patch" | sha256sum --check -
+          python <<'PY'
+          import os
+          from pathlib import Path
+
+          raw = Path(os.environ['RUNNER_TEMP']) / 'universal-controls.raw.patch'
+          repaired = Path(os.environ['RUNNER_TEMP']) / 'universal-controls.patch'
+          lines = raw.read_text().splitlines()
+          output: list[str] = []
+          in_hunk = False
+          for line in lines:
+              if line.startswith('diff --git '):
+                  in_hunk = False
+                  output.append(line)
+                  continue
+              if line.startswith('@@ '):
+                  in_hunk = True
+                  output.append(line)
+                  continue
+              if in_hunk and not line.startswith((' ', '+', '-', '\\')):
+                  line = ' ' + line
+              elif in_hunk and line == '':
+                  line = ' '
+              output.append(line)
+          text = '\n'.join(output) + '\n'
+          text = text.replace('requestFulscreen', 'requestFullscreen')
+          text = text.replace('<span>B SKILL/span>', '<span>B SKILL</span>')
+          repaired.write_text(text)
+          PY
           git apply --recount --check "$RUNNER_TEMP/universal-controls.patch"
           git apply --recount "$RUNNER_TEMP/universal-controls.patch"
           rm -rf .github/control-patch
