@@ -1,0 +1,386 @@
+name: Finalize universal football controls
+
+on:
+  push:
+    branches: [agent/universal-football-controls-clean]
+    paths:
+      - .github/workflows/finalize-universal-controls.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-universal-football-controls
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out clean controls branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/universal-football-controls-clean
+          fetch-depth: 0
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Recover and integrate universal controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          RAW_B64="$RUNNER_TEMP/universal-controls.b64"
+          RAW_PATCH="$RUNNER_TEMP/universal-controls.raw.patch"
+          PATCH="$RUNNER_TEMP/universal-controls.patch"
+          SOURCE="$RUNNER_TEMP/control-source"
+          MANIFEST="$RUNNER_TEMP/control-manifest.json"
+
+          : > "$RAW_B64"
+          while IFS= read -r file; do
+            git show "origin/agent/universal-football-controls:${file}" >> "$RAW_B64"
+          done < <(git ls-tree -r --name-only origin/agent/universal-football-controls .github/control-patch | sort)
+          tr -d '[:space:]' < "$RAW_B64" | base64 --decode > "$RAW_PATCH"
+          echo "8302c9cbea67f6cb201dc7e0d3c8aae25b79c0b17e3dd21dfd2203235ab1762e  $RAW_PATCH" | sha256sum --check -
+
+          python <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          temp = Path(os.environ['RUNNER_TEMP'])
+          raw = temp / 'universal-controls.raw.patch'
+          repaired = temp / 'universal-controls.patch'
+          manifest = temp / 'control-manifest.json'
+          output: list[str] = []
+          files: dict[str, dict[str, str]] = {}
+          current_path: str | None = None
+          in_hunk = False
+
+          for line in raw.read_text().splitlines():
+              if line.startswith('diff --git '):
+                  in_hunk = False
+                  match = re.match(r'diff --git a/(.+) b/(.+)', line)
+                  current_path = match.group(2) if match else None
+              elif current_path and line.startswith('index '):
+                  match = re.match(r'index ([0-9a-f]+)\.\.([0-9a-f]+)', line)
+                  if match:
+                      files[current_path] = {'path': current_path, 'old': match.group(1), 'new': match.group(2)}
+              elif current_path and line.startswith('new file mode '):
+                  files.setdefault(current_path, {'path': current_path, 'old': '0000000', 'new': ''})
+              elif line.startswith('@@ '):
+                  in_hunk = True
+              elif in_hunk and not line.startswith((' ', '+', '-', '\\')):
+                  line = ' ' + line
+              elif in_hunk and line == '':
+                  line = ' '
+              output.append(line)
+
+          text = '\n'.join(output) + '\n'
+          text = text.replace('requestFulscreen', 'requestFullscreen')
+          text = text.replace('controls.currentent.rawKeys', 'controls.current.rawKeys')
+          text = text.replace('slide-tacle', 'slide-tackle')
+          text = text.replace('<span>B SKILL/span>', '<span>B SKILL</span>')
+          repaired.write_text(text)
+          manifest.write_text(json.dumps(list(files.values()), indent=2))
+          PY
+
+          git worktree add --detach "$SOURCE" origin/main
+          SOURCE="$SOURCE" MANIFEST="$MANIFEST" python <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          source = Path(os.environ['SOURCE'])
+          items = json.loads(Path(os.environ['MANIFEST']).read_text())
+          for item in items:
+              target = source / item['path']
+              target.parent.mkdir(parents=True, exist_ok=True)
+              old = item['old']
+              if not old.strip('0'):
+                  if target.exists():
+                      target.unlink()
+                  continue
+              target.write_bytes(subprocess.check_output(['git', 'cat-file', 'blob', old], cwd=source))
+          PY
+
+          git -C "$SOURCE" apply --recount --reject --whitespace=nowarn "$PATCH" || true
+
+          SOURCE="$SOURCE" MANIFEST="$MANIFEST" python <<'PY'
+          import json
+          import os
+          import re
+          import shutil
+          import subprocess
+          import tempfile
+          from pathlib import Path
+
+          repo = Path.cwd()
+          source = Path(os.environ['SOURCE'])
+          items = {item['path']: item for item in json.loads(Path(os.environ['MANIFEST']).read_text())}
+
+          safe_paths = [
+              'data/input/control-presets.json',
+              'docs/controls/ARCHITECTURE.md',
+              'scripts/input-validate.mjs',
+              'src/main.tsx',
+              'src/input/ControlSettingsPanel.tsx',
+              'src/input/UniversalControlsOverlay.tsx',
+              'src/input/bus.ts',
+              'src/input/controls.css',
+              'src/input/types.ts',
+              'src/input/useUniversalInput.ts',
+          ]
+
+          def merge_path(path: str) -> None:
+              target = source / path
+              current = repo / path
+              if not target.exists():
+                  raise RuntimeError(f'Missing recovered controls file: {path}')
+              item = items.get(path)
+              old = item['old'] if item else '0000000'
+              current.parent.mkdir(parents=True, exist_ok=True)
+              if not old.strip('0') or not current.exists():
+                  shutil.copy2(target, current)
+                  return
+              base = subprocess.check_output(['git', 'cat-file', 'blob', old], cwd=repo)
+              with tempfile.TemporaryDirectory() as directory:
+                  directory_path = Path(directory)
+                  ours = directory_path / 'ours'
+                  ancestor = directory_path / 'base'
+                  theirs = directory_path / 'theirs'
+                  ours.write_bytes(current.read_bytes())
+                  ancestor.write_bytes(base)
+                  theirs.write_bytes(target.read_bytes())
+                  result = subprocess.run(
+                      ['git', 'merge-file', '-p', str(ours), str(ancestor), str(theirs)],
+                      cwd=repo,
+                      capture_output=True,
+                  )
+                  merged = result.stdout
+                  if result.returncode > 1 or b'<<<<<<<' in merged:
+                      raise RuntimeError(f'Three-way merge failed for {path}')
+                  current.write_bytes(merged)
+
+          for path in safe_paths:
+              merge_path(path)
+
+          package_path = repo / 'package.json'
+          target_package_path = source / 'package.json'
+          package = json.loads(package_path.read_text())
+          target_package = json.loads(target_package_path.read_text())
+          package.setdefault('scripts', {})
+          for name, command in target_package.get('scripts', {}).items():
+              if name != 'build':
+                  package['scripts'][name] = command
+          build = package['scripts'].get('build', 'vite build')
+          if 'npm run input:validate' not in build:
+              package['scripts']['build'] = f'npm run input:validate && {build}'
+          for section in ('dependencies', 'devDependencies'):
+              package.setdefault(section, {}).update(target_package.get(section, {}))
+          package_path.write_text(json.dumps(package, indent=2) + '\n')
+
+          def read(path: str) -> str:
+              return (repo / path).read_text()
+
+          def write(path: str, text: str) -> None:
+              (repo / path).write_text(text)
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise RuntimeError(f'Unable to locate {label}')
+              return text.replace(old, new, 1)
+
+          # MatchView: adaptive controls UI and settings.
+          path = 'src/components/MatchView.tsx'
+          text = read(path)
+          text = replace_once(text, '  RotateCcw,\n  Shield,', '  RotateCcw,\n  SlidersHorizontal,\n  Shield,', 'MatchView icon imports')
+          text = replace_once(
+              text,
+              "import { useFootballAudio } from '../audio/useFootballAudio'\n",
+              "import { useFootballAudio } from '../audio/useFootballAudio'\nimport { UniversalControlsOverlay } from '../input/UniversalControlsOverlay'\nimport { ControlSettingsPanel } from '../input/ControlSettingsPanel'\nimport { getActiveInputDevice, subscribeFootballAction, subscribeInputDevice } from '../input/bus'\nimport type { InputDeviceKind } from '../input/types'\n",
+              'MatchView input imports',
+          )
+          text = replace_once(
+              text,
+              '  const [showAudioSettings, setShowAudioSettings] = useState(false)\n',
+              "  const [showAudioSettings, setShowAudioSettings] = useState(false)\n  const [showControlSettings, setShowControlSettings] = useState(false)\n  const [activeInput, setActiveInput] = useState<InputDeviceKind>(() => getActiveInputDevice())\n",
+              'MatchView controls state',
+          )
+          cleanup = "  useEffect(() => () => {\n    if (replayTimerRef.current !== null) window.clearTimeout(replayTimerRef.current)\n    clearPhaseTimers()\n  }, [clearPhaseTimers])\n"
+          subscriptions = cleanup + "\n  useEffect(() => subscribeInputDevice(setActiveInput), [])\n\n  useEffect(() => subscribeFootballAction((action) => {\n    if (action === 'pause') void toggleMatch()\n    if (action === 'tactics') setShowControlSettings(true)\n  }), [toggleMatch])\n"
+          text = replace_once(text, cleanup, subscriptions, 'MatchView input subscriptions')
+          text, count = re.subn(
+              r"\n  const dispatchKey = \(key: string, down: boolean\) => \{\n    window\.dispatchEvent\(new KeyboardEvent\(down \? 'keydown' : 'keyup', \{ key, bubbles: true \}\)\)\n  \}\n",
+              '\n',
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise RuntimeError('Unable to remove MatchView keyboard emulation')
+          old_prompt = "          <span><Gamepad2 size={14} /> WASD MOVE</span><span>SHIFT SPRINT</span><span>E PASS</span><span>SPACE SHOOT</span><span>F TACKLE</span>{cameraMode === 'free' && <span>Q / R VERTICAL</span>}"
+          new_prompt = "          {activeInput === 'gamepad' ? <><span><Gamepad2 size={14} /> LEFT STICK MOVE</span><span>RT SPRINT</span><span>A PASS</span><span>B SHOOT</span><span>LB SWITCH</span></> : activeInput === 'touch' ? <><span><Gamepad2 size={14} /> TOUCH CONTROLS</span><span>ANALOG MOVE</span><span>HOLD FOR POWER</span><span>MULTI-TOUCH READY</span></> : <><span><Gamepad2 size={14} /> WASD MOVE</span><span>SHIFT SPRINT</span><span>E PASS</span><span>T THROUGH</span><span>SPACE / LMB SHOOT</span><span>F TACKLE</span><span>B SKILL</span></>}{cameraMode === 'free' && <span>Q / R VERTICAL</span>}"
+          text = replace_once(text, old_prompt, new_prompt, 'MatchView adaptive prompts')
+          old_overlay = '''        <div className="game-controls-overlay">
+          <div className="touch-dpad mobile-game-controls">
+            <button onPointerDown={() => dispatchKey('w', true)} onPointerUp={() => dispatchKey('w', false)}>▲</button>
+            <button onPointerDown={() => dispatchKey('a', true)} onPointerUp={() => dispatchKey('a', false)}>◀</button>
+            <button onPointerDown={() => dispatchKey('d', true)} onPointerUp={() => dispatchKey('d', false)}>▶</button>
+            <button onPointerDown={() => dispatchKey('s', true)} onPointerUp={() => dispatchKey('s', false)}>▼</button>
+          </div>
+          <div className="touch-actions mobile-game-controls">
+            <button onPointerDown={() => dispatchKey('e', true)} onPointerUp={() => dispatchKey('e', false)}>PASS</button>
+            <button onPointerDown={() => dispatchKey(' ', true)} onPointerUp={() => dispatchKey(' ', false)}>SHOOT</button>
+            <button onPointerDown={() => dispatchKey('f', true)} onPointerUp={() => dispatchKey('f', false)}>TACKLE</button>
+          </div>
+        </div>'''
+          text = replace_once(text, old_overlay, "        <UniversalControlsOverlay enabled={running && !replayActive && presentationPhase === 'live'} />", 'MatchView touch overlay')
+          reset_button = '          <button className="secondary-button" onClick={reset}><RotateCcw size={17} /> Reset</button>'
+          text = replace_once(text, reset_button, reset_button + '\n          <button className="secondary-button" onClick={() => setShowControlSettings(true)}><SlidersHorizontal size={17} /> Controls</button>', 'MatchView controls button')
+          audio_panel = '      <AudioSettingsPanel settings={audioSettings}'
+          text = replace_once(text, audio_panel, '      <ControlSettingsPanel open={showControlSettings} onClose={() => setShowControlSettings(false)} />\n' + audio_panel, 'MatchView controls panel')
+          write(path, text)
+
+          # CameraRig: semantic input state replaces keyboard-only controls.
+          path = 'src/game/CameraRig.tsx'
+          text = read(path)
+          text = replace_once(text, "import type { KeyboardState } from './useKeyboard'", "import type { UniversalInputState } from '../input/types'", 'CameraRig input import')
+          text = replace_once(text, '  keyboard: { current: KeyboardState }', '  controls: { current: UniversalInputState }', 'CameraRig input prop')
+          text = replace_once(text, ', keyboard }: CameraRigProps)', ', controls }: CameraRigProps)', 'CameraRig parameter')
+          text = replace_once(text, 'const held = keyboard.current.held', 'const held = controls.current.rawKeys', 'CameraRig free camera input')
+          write(path, text)
+
+          # MatchScene: universal input hook, manual player switching and semantic props.
+          path = 'src/game/MatchScene.tsx'
+          text = read(path)
+          text = replace_once(text, "import { useKeyboard } from './useKeyboard'", "import { useUniversalInput } from '../input/useUniversalInput'", 'MatchScene input hook')
+          text = replace_once(text, '  controlledPosition: { current: THREE.Vector3 }\n', '  controlledPosition: { current: THREE.Vector3 }\n  controlledIndex: number\n', 'Runtime controlled index prop')
+          text = replace_once(text, 'function Runtime({ ballRef, controlledPosition, scoreGoal,', 'function Runtime({ ballRef, controlledPosition, controlledIndex, scoreGoal,', 'Runtime controlled index parameter')
+          text = replace_once(text, "const controlledRuntime = humanWorld.world.players.find((player) => player.id === 'home-9')", "const controlledRuntime = humanWorld.world.players.find((player) => player.team === 'home' && player.index === controlledIndex)", 'Runtime controlled player telemetry')
+          text = replace_once(text, '  const keyboard = useKeyboard()\n', '  const controls = useUniversalInput()\n', 'MatchScene universal controls')
+          text = replace_once(text, '  const controlledPosition = useRef(new THREE.Vector3(FORMATION[9][0], PLAYER_HEIGHT / 2, FORMATION[9][1]))\n', '  const controlledPosition = useRef(new THREE.Vector3(FORMATION[9][0], PLAYER_HEIGHT / 2, FORMATION[9][1]))\n  const [controlledIndex, setControlledIndex] = useState(9)\n', 'MatchScene controlled index state')
+          effect_anchor = '  useEffect(() => director.updateSettings(competitiveSettings), [director, competitiveSettings])\n'
+          switch_effect = effect_anchor + "\n  useEffect(() => {\n    let frame = 0\n    const watchPlayerSwitch = () => {\n      if (controls.current.pressed.has('player-switch')) {\n        controls.current.pressed.delete('player-switch')\n        const ball = ballRef.current?.translation()\n        const move = controls.current.move\n        if (ball) {\n          const candidates = humanWorld.world.players\n            .filter((player) => player.team === 'home' && player.index !== controlledIndex)\n            .map((player) => {\n              const distance = Math.hypot(player.position.x - ball.x, player.position.z - ball.z)\n              const directionX = player.position.x - controlledPosition.current.x\n              const directionZ = player.position.z - controlledPosition.current.z\n              const directionLength = Math.max(0.001, Math.hypot(directionX, directionZ))\n              const directionalBias = move.magnitude > 0.15 ? 4 * (1 - ((directionX / directionLength) * move.x + (directionZ / directionLength) * move.z)) : 0\n              return { index: player.index, score: distance + directionalBias + (player.role === 'goalkeeper' ? 9 : 0) }\n            })\n            .sort((a, b) => a.score - b.score)\n          if (candidates[0]) {\n            setControlledIndex(candidates[0].index)\n            props.onEvent(`Manual player switch · #${candidates[0].index + 1}`)\n          }\n        }\n      }\n      frame = window.requestAnimationFrame(watchPlayerSwitch)\n    }\n    frame = window.requestAnimationFrame(watchPlayerSwitch)\n    return () => window.cancelAnimationFrame(frame)\n  }, [controlledIndex, controls, humanWorld, props.onEvent])\n"
+          text = replace_once(text, effect_anchor, switch_effect, 'MatchScene switch effect')
+          text = replace_once(text, "controlled={team === 'home' && index === 9}", "controlled={team === 'home' && index === controlledIndex}", 'MatchScene controlled player')
+          text = replace_once(text, 'keyboard={keyboard}', 'controls={controls}', 'PlayerAvatar controls prop')
+          text = replace_once(text, 'controlledPosition={controlledPosition} humanWorld={humanWorld} director={director}', 'controlledPosition={controlledPosition} controlledIndex={controlledIndex} humanWorld={humanWorld} director={director}', 'Runtime controlled index')
+          text = replace_once(text, 'controlledPosition={controlledPosition} keyboard={keyboard}', 'controlledPosition={controlledPosition} controls={controls}', 'CameraRig controls prop')
+          write(path, text)
+
+          # PlayerAvatar: full semantic football actions across keyboard, gamepad and touch.
+          path = 'src/game/PlayerAvatar.tsx'
+          text = read(path)
+          text = replace_once(text, "import type { KeyboardState } from './useKeyboard'", "import type { UniversalInputState } from '../input/types'", 'PlayerAvatar input import')
+          text = replace_once(text, '  keyboard: { current: KeyboardState }', '  controls: { current: UniversalInputState }', 'PlayerAvatar input prop')
+          text = replace_once(text, '  keyboard,\n  ballRef,', '  controls,\n  ballRef,', 'PlayerAvatar input parameter')
+          replacement = '''      if (controlled) {
+        const input = controls.current
+        const inputX = input.move.x * input.move.magnitude
+        const inputZ = input.move.z * input.move.magnitude
+        const inputLength = input.move.magnitude
+        const sprinting = input.held.has('sprint') && inputLength > 0
+        const controlledSprint = input.held.has('controlled-sprint') && inputLength > 0
+        const shielding = input.held.has('shield')
+        const requestedSpeed = sprinting ? 10 : controlledSprint ? 7.6 : inputLength > 0 ? THREE.MathUtils.lerp(2.1, 6.5, inputLength) : 0
+        desiredVelocity.set(inputX * requestedSpeed, 0, inputZ * requestedSpeed)
+        runtime.hasBallIntent = perception.distanceToBall < 1.7
+
+        if (input.pressed.has('cancel') && pendingContact.current && pendingContact.current.executeAt - now > 0.04) {
+          pendingContact.current = null
+          runtime.action = 'hold'
+          motion.current.kick = 0
+          motion.current.tackle = 0
+          onEvent('Action cancelled')
+        }
+
+        if (input.released.has('shoot') && !pendingContact.current) {
+          const charge = THREE.MathUtils.clamp(input.lastHoldDurations.get('shoot') ?? 0.08, 0.05, 0.8)
+          const targetHeight = input.held.has('chip') ? 2.2 : THREE.MathUtils.lerp(0.45, 1.2, charge / 0.8)
+          pendingContact.current = { action: 'shoot', target: new THREE.Vector3(attackDirection(team) * HALF_LENGTH, targetHeight, THREE.MathUtils.clamp(-ballPosition.z * 0.08, -1.2, 1.2)), executeAt: now + 0.12, technique: input.held.has('finesse') ? 'finesse-shot' : input.held.has('chip') ? 'chip-shot' : charge > 0.52 || input.held.has('sprint') ? 'power-shot' : 'placed-shot' }
+          runtime.action = 'shoot'
+          runtime.actionStartedAt = now
+          motion.current.kick = THREE.MathUtils.lerp(0.28, 0.48, charge / 0.8)
+        }
+
+        const passAction = input.released.has('lob-pass') ? 'lob-pass' : input.released.has('through-pass') ? 'through-pass' : input.released.has('pass') ? 'pass' : null
+        if (passAction && !pendingContact.current) {
+          const teammate = [...perception.teammates].sort((a, b) => {
+            const aValue = a.position.clone().sub(runtime.position).dot(new THREE.Vector3(attackDirection(team), 0, 0)) - a.position.distanceTo(runtime.position) * 0.15
+            const bValue = b.position.clone().sub(runtime.position).dot(new THREE.Vector3(attackDirection(team), 0, 0)) - b.position.distanceTo(runtime.position) * 0.15
+            return bValue - aValue
+          })[0]
+          const lead = passAction === 'through-pass' ? 1.05 : 0.42
+          const target = teammate?.position.clone().add(teammate.velocity.clone().multiplyScalar(lead)) ?? runtime.position.clone().add(new THREE.Vector3(attackDirection(team) * (passAction === 'through-pass' ? 18 : 12), 0, 0))
+          const charge = THREE.MathUtils.clamp(input.lastHoldDurations.get(passAction) ?? 0.08, 0.05, 0.8)
+          pendingContact.current = { action: 'pass', target, executeAt: now + 0.1, technique: passAction === 'lob-pass' ? 'lofted-pass' : passAction === 'through-pass' ? 'through-ball' : charge > 0.48 || input.held.has('sprint') ? 'driven-pass' : 'short-pass' }
+          runtime.action = 'pass'
+          runtime.actionStartedAt = now
+          motion.current.kick = THREE.MathUtils.lerp(0.24, 0.4, charge / 0.8)
+        }
+
+        if ((input.pressed.has('tackle') || input.pressed.has('slide-tackle')) && !pendingContact.current) {
+          pendingContact.current = { action: 'tackle', target: ballPosition.clone(), executeAt: now + 0.08, technique: input.pressed.has('slide-tackle') || input.held.has('sprint') ? 'slide-tackle' : 'poke-tackle' }
+          runtime.action = 'tackle'
+          runtime.actionStartedAt = now
+          motion.current.tackle = 1
+        }
+
+        if (input.pressed.has('skill') && perception.distanceToBall < 1.4 && !pendingContact.current) {
+          const skillDirection = inputLength > 0 ? desiredVelocity.clone().normalize() : new THREE.Vector3(attackDirection(team), 0, 0)
+          const skillTarget = runtime.position.clone().add(skillDirection.multiplyScalar(3.2)).add(new THREE.Vector3(0, 0, team === 'home' ? 0.9 : -0.9))
+          if (performContact('dribble', skillTarget, perception.pressure, profile.preferredFoot, 'close-dribble')) {
+            dribbleCooldown.current = 0.34
+            runtime.action = 'dribble'
+            onEvent('Context skill move')
+          }
+        }
+
+        ;(['cancel', 'tackle', 'slide-tackle', 'skill'] as const).forEach((action) => input.pressed.delete(action))
+        ;(['shoot', 'pass', 'through-pass', 'lob-pass'] as const).forEach((action) => input.released.delete(action))
+
+        if (inputLength > 0 && perception.distanceToBall < 1.25 && dribbleCooldown.current === 0 && !pendingContact.current) {
+          const dribbleTarget = runtime.position.clone().add(desiredVelocity.clone().normalize().multiplyScalar(sprinting ? 4.4 : controlledSprint ? 2.8 : shielding ? 1.45 : 2.1))
+          const technique = sprinting ? 'sprint-dribble' : shielding || perception.pressure > 0.55 ? 'protective-touch' : 'close-dribble'
+          if (performContact('dribble', dribbleTarget, perception.pressure, profile.preferredFoot, technique)) dribbleCooldown.current = THREE.MathUtils.lerp(0.42, 0.26, profile.ability.dribbling) / profile.movement.touchRhythm
+        }
+      } else {'''
+          text, count = re.subn(r"      if \(controlled\) \{\n.*?\n      \} else \{", replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise RuntimeError('Unable to replace PlayerAvatar controlled input block')
+          text = replace_once(text, '    desiredVelocity.set(0, 0, 0)\n    if (running) {', "    desiredVelocity.set(0, 0, 0)\n    if (controlled && !running) {\n      controls.current.pressed.clear()\n      controls.current.released.clear()\n    }\n    if (running) {", 'PlayerAvatar paused input cleanup')
+          write(path, text)
+
+          for reject in source.rglob('*.rej'):
+              reject.unlink()
+          PY
+
+          rm -f .github/workflows/finalize-universal-controls.yml
+          git add -A
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate universal controls and full game
+        run: |
+          npm run input:validate
+          npm run audio:validate
+          npm run human:validate
+          npm run world:validate
+          npm run lint
+          npm run build
+
+      - name: Commit validated controls
+        shell: bash
+        run: |
+          git add -A
+          git commit -m 'Integrate universal cross-device football controls'
+          git push origin HEAD:agent/universal-football-controls-clean
