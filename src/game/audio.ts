@@ -7,6 +7,7 @@ interface MatchAudioDirector {
   fulltime: () => void
   pass: () => void
   shot: () => void
+  save: () => void
   goal: () => void
   setCrowdIntensity: (value: number) => void
 }
@@ -116,6 +117,12 @@ export function useMatchAudio(enabled: boolean, volume: number): MatchAudioDirec
     noiseBurst(0.16, 0.15, 1800)
   }, [noiseBurst, tone])
 
+  const save = useCallback(() => {
+    tone(92, 0.2, 0.16, 'triangle', 46)
+    noiseBurst(0.18, 0.13, 980)
+    window.setTimeout(() => tone(245, 0.16, 0.075, 'sine', 170), 65)
+  }, [noiseBurst, tone])
+
   const goal = useCallback(() => {
     const context = contextRef.current
     const crowd = crowdGainRef.current
@@ -168,7 +175,8 @@ export function useMatchAudio(enabled: boolean, volume: number): MatchAudioDirec
     fulltime,
     pass,
     shot,
+    save,
     goal,
     setCrowdIntensity,
-  }), [ensureStarted, fulltime, goal, halftime, kickoff, pass, setCrowdIntensity, shot])
+  }), [ensureStarted, fulltime, goal, halftime, kickoff, pass, save, setCrowdIntensity, shot])
 }
