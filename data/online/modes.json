@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ranked-1v1",
+    "name": "Ranked 1v1",
+    "teamSize": 1,
+    "ranked": true,
+    "crossPlay": true,
+    "maxPingMs": 140,
+    "reconnectSeconds": 90,
+    "description": "Division football with server-validated results and seasonal rewards."
+  },
+  {
+    "id": "friendly-1v1",
+    "name": "Friendly 1v1",
+    "teamSize": 1,
+    "ranked": false,
+    "crossPlay": true,
+    "maxPingMs": 180,
+    "reconnectSeconds": 120,
+    "description": "Low-pressure head-to-head football with room-code support."
+  },
+  {
+    "id": "co-op-2v2",
+    "name": "Co-op 2v2",
+    "teamSize": 2,
+    "ranked": true,
+    "crossPlay": true,
+    "maxPingMs": 150,
+    "reconnectSeconds": 120,
+    "description": "Two-player partnerships with shared tactical responsibility."
+  },
+  {
+    "id": "club-5v5",
+    "name": "Online Clubs 5v5",
+    "teamSize": 5,
+    "ranked": true,
+    "crossPlay": true,
+    "maxPingMs": 160,
+    "reconnectSeconds": 150,
+    "description": "Persistent club squads, roles, captains and seasonal tables."
+  },
+  {
+    "id": "tournament",
+    "name": "Live Tournament",
+    "teamSize": 1,
+    "ranked": true,
+    "crossPlay": true,
+    "maxPingMs": 150,
+    "reconnectSeconds": 90,
+    "description": "Scheduled knockout events with eligibility and check-in windows."
+  },
+  {
+    "id": "community-cup",
+    "name": "Community Cup",
+    "teamSize": 1,
+    "ranked": false,
+    "crossPlay": true,
+    "maxPingMs": 190,
+    "reconnectSeconds": 120,
+    "description": "Moderated regional events for schools, communities and supporters."
+  }
+]

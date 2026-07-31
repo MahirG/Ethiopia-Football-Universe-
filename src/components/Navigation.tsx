@@ -1,5 +1,5 @@
 import {
-  BookOpen, CircleUserRound, ClipboardList, Database, Gamepad2, GraduationCap,
+  BookOpen, CircleUserRound, ClipboardList, Database, Gamepad2, Globe2, GraduationCap,
   Home, LayoutGrid, Settings, Shield, Swords, Trophy, UsersRound, X,
 } from 'lucide-react'
 import type { Language, View } from '../types'
@@ -9,6 +9,7 @@ import { BrandMark } from './BrandMark'
 const items: { id: View; icon: typeof Home; label: string }[] = [
   { id: 'home', icon: Home, label: 'home' },
   { id: 'match', icon: Gamepad2, label: 'match' },
+  { id: 'online', icon: Globe2, label: 'online' },
   { id: 'clubs', icon: Shield, label: 'clubs' },
   { id: 'career', icon: CircleUserRound, label: 'career' },
   { id: 'tactics', icon: ClipboardList, label: 'tactics' },
@@ -44,7 +45,7 @@ export function Navigation({ view, setView, language, open, close }: Props) {
           >
             <Icon size={18} strokeWidth={1.8} />
             <span>{t[label]}</span>
-            {id === 'match' && <span className="live-dot" title="Playable" />}
+            {(id === 'match' || id === 'online') && <span className="live-dot" title={id === 'match' ? 'Playable' : 'Connected platform'} />}
           </button>
         ))}
       </nav>
@@ -56,7 +57,7 @@ export function Navigation({ view, setView, language, open, close }: Props) {
       </div>
       <div className="sidebar-foot">
         <BookOpen size={15} />
-        <span>Design & game systems v1.0</span>
+        <span>Connected platform v1.9</span>
         <LayoutGrid size={15} />
       </div>
     </aside>

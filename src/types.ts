@@ -1,5 +1,5 @@
 export type Language = 'en' | 'am' | 'om' | 'ti'
-export type View = 'home' | 'match' | 'clubs' | 'career' | 'tactics' | 'competitions' | 'academy' | 'community' | 'database' | 'settings'
+export type View = 'home' | 'match' | 'online' | 'clubs' | 'career' | 'tactics' | 'competitions' | 'academy' | 'community' | 'database' | 'settings'
 
 export interface Club {
   id: string

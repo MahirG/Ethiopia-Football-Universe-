@@ -1,0 +1,38 @@
+{
+  "inputSequenceWindow": 120,
+  "maximumClockDriftMs": 850,
+  "maximumPositionCorrectionMetres": 8,
+  "maximumInputRatePerSecond": 90,
+  "minimumShotIntervalMs": 180,
+  "reconnectWindowSeconds": 90,
+  "heartbeatIntervalSeconds": 5,
+  "eventRetentionDays": 30,
+  "reportRetentionDays": 180,
+  "hashChain": "fnv1a-32-client-sha256-server",
+  "serverAuthoritative": [
+    "score",
+    "clock",
+    "ball",
+    "contacts",
+    "cards",
+    "offsides",
+    "restarts",
+    "match-result",
+    "rating-change"
+  ],
+  "clientPredicted": [
+    "movement",
+    "camera",
+    "presentation",
+    "nonessential-crowd-animation"
+  ],
+  "moderationCategories": [
+    "abusive-name",
+    "harassment",
+    "hate-speech",
+    "cheating",
+    "disconnect-abuse",
+    "match-fixing",
+    "spam"
+  ]
+}

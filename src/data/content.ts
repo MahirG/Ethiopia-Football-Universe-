@@ -2,19 +2,19 @@ import type { Language } from '../types'
 
 export const labels: Record<Language, Record<string, string>> = {
   en: {
-    home: 'Universe', match: 'Play Match', clubs: 'Clubs', career: 'Career', tactics: 'Tactics', competitions: 'Competitions', academy: 'Academy', community: 'Community', database: 'World DB', settings: 'Settings',
+    home: 'Universe', match: 'Play Match', online: 'Online Centre', clubs: 'Clubs', career: 'Career', tactics: 'Tactics', competitions: 'Competitions', academy: 'Academy', community: 'Community', database: 'World DB', settings: 'Settings',
     playNow: 'Play now', explore: 'Explore clubs', headline: 'The heartbeat of Ethiopian football.', subhead: 'Play, manage, build and represent every level of the Ethiopian game — from community pitches to the national team.',
   },
   am: {
-    home: 'ዩኒቨርስ', match: 'ጨዋታ', clubs: 'ክለቦች', career: 'የሙያ ጉዞ', tactics: 'ታክቲክ', competitions: 'ውድድሮች', academy: 'አካዳሚ', community: 'ማህበረሰብ', database: 'የዓለም መረጃ', settings: 'ቅንብሮች',
+    home: 'ዩኒቨርስ', match: 'ጨዋታ', online: 'የመስመር ላይ ማዕከል', clubs: 'ክለቦች', career: 'የሙያ ጉዞ', tactics: 'ታክቲክ', competitions: 'ውድድሮች', academy: 'አካዳሚ', community: 'ማህበረሰብ', database: 'የዓለም መረጃ', settings: 'ቅንብሮች',
     playNow: 'አሁን ተጫወት', explore: 'ክለቦችን ይመልከቱ', headline: 'የኢትዮጵያ እግር ኳስ የልብ ምት።', subhead: 'ከማህበረሰብ ሜዳ እስከ ብሔራዊ ቡድን — ተጫወት፣ አስተዳድር እና ክለብህን ገንባ።',
   },
   om: {
-    home: 'Yuunivarsii', match: 'Tapha', clubs: 'Kilaabota', career: 'Imala Hojii', tactics: 'Taktiikii', competitions: 'Dorgommii', academy: 'Akkaadaamii', community: 'Hawaasa', database: 'Kuusaa Addunyaa', settings: 'Qindaa’ina',
+    home: 'Yuunivarsii', match: 'Tapha', online: 'Wiirtuu Toora Irraa', clubs: 'Kilaabota', career: 'Imala Hojii', tactics: 'Taktiikii', competitions: 'Dorgommii', academy: 'Akkaadaamii', community: 'Hawaasa', database: 'Kuusaa Addunyaa', settings: 'Qindaa’ina',
     playNow: 'Amma taphadhu', explore: 'Kilaabota ilaali', headline: 'Dha’annaa onnee kubbaa miilaa Itoophiyaa.', subhead: 'Dirree hawaasaa irraa hanga garee biyyaalessaatti — taphadhu, bulchi, ijaari fi bakka bu’i.',
   },
   ti: {
-    home: 'ዩኒቨርስ', match: 'ጸወታ', clubs: 'ክለባት', career: 'ሞያ', tactics: 'ታክቲክ', competitions: 'ውድድራት', academy: 'ኣካዳሚ', community: 'ማሕበረሰብ', database: 'ዳታቤዝ', settings: 'ቅንብር',
+    home: 'ዩኒቨርስ', match: 'ጸወታ', online: 'ናይ ኦንላይን ማእከል', clubs: 'ክለባት', career: 'ሞያ', tactics: 'ታክቲክ', competitions: 'ውድድራት', academy: 'ኣካዳሚ', community: 'ማሕበረሰብ', database: 'ዳታቤዝ', settings: 'ቅንብር',
     playNow: 'ሕጂ ተጻወት', explore: 'ክለባት ርአ', headline: 'ትርግታ ልቢ ኩዕሶ እግሪ ኢትዮጵያ።', subhead: 'ካብ ሜዳ ማሕበረሰብ ክሳብ ሃገራዊ ጋንታ — ተጻወት፣ ኣመሓድር፣ ህነጽ።',
   },
 }
@@ -26,6 +26,7 @@ export const modes = [
   { title: 'Player Career', detail: 'Build a footballer from school trials to captaincy, retirement and coaching.' },
   { title: 'League & Cup', detail: 'Dynamic seasons, promotion, relegation, suspensions, awards and qualification.' },
   { title: 'Street & Community', detail: '3v3, 4v4, 5v5 and futsal on Ethiopian community grounds.' },
+  { title: 'Online Seasons', detail: 'Ranked divisions, private rooms, clubs, tournaments, cloud saves and reconnect.' },
 ]
 
 export const featurePillars = [
@@ -38,8 +39,8 @@ export const featurePillars = [
 ]
 
 export const roadmap = [
-  { phase: '01', title: 'Core prototype', status: 'Playable', items: ['Movement', 'Passing', 'Shooting', 'Basic AI', 'Match clock'] },
-  { phase: '02', title: 'Vertical slice', status: 'In build', items: ['Broadcast UI', 'Career sample', 'Commentary sample', 'PC + Android'] },
-  { phase: '03', title: 'MVP', status: 'Planned', items: ['Premier League', 'Cup', 'National team', 'Online 1v1', 'Amharic'] },
-  { phase: '04', title: 'Full universe', status: 'Vision', items: ['Women', 'Youth', 'Higher League', 'Online clubs', 'Console'] },
+  { phase: '01', title: 'Core prototype', status: 'Complete', items: ['Movement', 'Passing', 'Shooting', 'Basic AI', 'Match clock'] },
+  { phase: '02', title: 'Simulation vertical slice', status: 'Complete', items: ['Broadcast UI', 'Career sample', 'Commentary', 'PC + mobile'] },
+  { phase: '03–05', title: 'Living match universe', status: 'Complete', items: ['Human simulation', 'Audio', 'World', 'Laws', 'VAR', 'Tactics'] },
+  { phase: '06', title: 'Connected platform', status: 'In build', items: ['Online identity', 'Cloud saves', 'Matchmaking', 'Ranked seasons', 'Integrity'] },
 ]
