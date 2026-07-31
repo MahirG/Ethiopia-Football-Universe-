@@ -51,6 +51,24 @@ jobs:
               if line.startswith('      - name:'):
                   break
               body.append(line[10:] if line.startswith('          ') else line)
+
+          for index, line in enumerate(body):
+              if 'MatchView touch overlay' not in line:
+                  continue
+              indent = line[:len(line) - len(line.lstrip())]
+              body[index:index + 1] = [
+                  f'{indent}text, count = re.subn(',
+                  f'{indent}    r\'        <div className="game-controls-overlay">.*?        </div>\\n      </section>\',',
+                  f'{indent}    "        <UniversalControlsOverlay enabled={{running && !replayActive && presentationPhase === \'live\'}} />\\n      </section>",',
+                  f'{indent}    text,',
+                  f'{indent}    count=1,',
+                  f'{indent}    flags=re.S,',
+                  f'{indent})',
+                  f'{indent}if count != 1:',
+                  f"{indent}    raise RuntimeError('Unable to replace MatchView touch overlay')",
+              ]
+              break
+
           Path('/tmp/finalize-universal-controls.sh').write_text('\n'.join(body) + '\n')
           PY
           bash /tmp/finalize-universal-controls.sh
