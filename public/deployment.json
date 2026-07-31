@@ -1,14 +1,19 @@
 {
   "project": "Ethiopia Football Universe",
   "source": "main",
-  "releaseCommit": "34c5d77ebe62c3c575bc9e4e762d0af214cf7744",
-  "deployedAt": "2026-07-31T05:10:00Z",
+  "releaseCommit": "ed7a861983cb60b3f82c2ac9e3d865b3bc9050c0",
+  "deployedAt": "2026-07-31T06:31:00Z",
   "includes": [
     "3D match engine",
     "realism and replay systems",
     "cinematic broadcast presentation",
     "human player simulation",
     "Amharic commentary",
-    "complete football audio architecture"
+    "complete football audio architecture",
+    "living competition and tournament ecosystem",
+    "Ethiopian stadium and venue system",
+    "engineered pitches and match-ball families",
+    "dynamic attendance, crowds, staff and match-day operations",
+    "ceremonies, trophies, weather, lighting and world synchronization"
   ]
 }
