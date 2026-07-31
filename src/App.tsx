@@ -8,6 +8,7 @@ import { CareerView } from './components/CareerView'
 import { AcademyView, CommunityView, CompetitionsView, DatabaseView, SettingsView, TacticsView } from './components/WorldViews'
 import type { Language, View } from './types'
 import { useLocalStorage } from './hooks/useLocalStorage'
+import { useGlobalAudio } from './audio/AudioProvider'
 
 export default function App() {
   const [view, setView] = useState<View>('home')
@@ -15,12 +16,19 @@ export default function App() {
   const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('efu-theme', 'dark')
   const [reducedMotion, setReducedMotion] = useLocalStorage('efu-reduced-motion', false)
   const [navOpen, setNavOpen] = useState(false)
+  const { setSnapshot: setAudioSnapshot, emit: emitAudio } = useGlobalAudio()
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     document.documentElement.classList.toggle('reduced-motion', reducedMotion)
     document.documentElement.lang = language
   }, [language, reducedMotion, theme])
+
+  useEffect(() => {
+    if (view === 'match') setAudioSnapshot('pre-match', 0.45)
+    else if (view === 'home') { setAudioSnapshot('main-menu', 0.6); emitAudio('music-menu') }
+    else setAudioSnapshot('team-selection', 0.45)
+  }, [emitAudio, setAudioSnapshot, view])
 
   const renderView = () => {
     switch (view) {
