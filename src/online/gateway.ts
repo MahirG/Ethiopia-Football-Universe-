@@ -8,6 +8,7 @@ import type {
 const IDENTITY_KEY = 'efu-online-identity'
 const CLOUD_SAVE_KEY = 'efu-online-cloud-save'
 const ROOM_KEY = 'efu-online-room'
+const ACCESS_TOKEN_KEY = 'efu-supabase-access-token'
 
 export interface OnlineGateway {
   readonly mode: GatewayMode
@@ -36,6 +37,11 @@ function writeLocal<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
+function uniqueId(prefix: string): string {
+  const value = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `${prefix}-${value}`
+}
+
 function roomCode(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase()
 }
@@ -43,7 +49,7 @@ function roomCode(): string {
 function localRoom(identity: OnlineIdentity, mode: OnlineModeId): OnlineRoom {
   const now = Date.now()
   return {
-    id: `room-${crypto.randomUUID?.() ?? now}`,
+    id: uniqueId('room'),
     code: roomCode(),
     mode,
     hostId: identity.id,
@@ -141,7 +147,8 @@ export class LocalOnlineGateway implements OnlineGateway {
 
 interface SupabaseConfig {
   url: string
-  anonKey: string
+  publishableKey: string
+  accessToken: string
 }
 
 export class SupabaseOnlineGateway implements OnlineGateway {
@@ -151,16 +158,12 @@ export class SupabaseOnlineGateway implements OnlineGateway {
   constructor(private readonly config: SupabaseConfig) {}
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${this.config.url}/rest/v1/${path}`, {
-      ...init,
-      headers: {
-        apikey: this.config.anonKey,
-        Authorization: `Bearer ${this.config.anonKey}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=representation',
-        ...init.headers,
-      },
-    })
+    const headers = new Headers(init.headers)
+    headers.set('apikey', this.config.publishableKey)
+    headers.set('Authorization', `Bearer ${this.config.accessToken}`)
+    headers.set('Content-Type', 'application/json')
+    headers.set('Prefer', 'resolution=merge-duplicates,return=representation')
+    const response = await fetch(`${this.config.url}/rest/v1/${path}`, { ...init, headers })
     if (!response.ok) throw new Error(`online-gateway-${response.status}`)
     if (response.status === 204) return undefined as T
     return response.json() as Promise<T>
@@ -264,8 +267,11 @@ export class SupabaseOnlineGateway implements OnlineGateway {
 
 export function createOnlineGateway(): OnlineGateway {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
-  return url && anonKey ? new SupabaseOnlineGateway({ url: url.replace(/\/$/, ''), anonKey }) : new LocalOnlineGateway()
+  const publishableKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined
+  const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY) ?? undefined
+  return url && publishableKey && accessToken
+    ? new SupabaseOnlineGateway({ url: url.replace(/\/$/, ''), publishableKey, accessToken })
+    : new LocalOnlineGateway()
 }
 
 export function createCloudEnvelope<T>(playerId: string, revision: number, deviceId: string, payload: T): CloudSaveEnvelope<T> {
