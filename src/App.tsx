@@ -7,6 +7,7 @@ import { ClubsView } from './components/ClubsView'
 import { CareerView } from './components/CareerView'
 import { AcademyView, CommunityView, CompetitionsView, DatabaseView, SettingsView, TacticsView } from './components/WorldViews'
 import { OnlineHub } from './online/OnlineHub'
+import { CloudAccountGate } from './online/CloudAccountGate'
 import type { Language, View } from './types'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useGlobalAudio } from './audio/AudioProvider'
@@ -34,7 +35,7 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'match': return <MatchView />
-      case 'online': return <OnlineHub />
+      case 'online': return <><OnlineHub /><CloudAccountGate /></>
       case 'clubs': return <ClubsView />
       case 'career': return <CareerView />
       case 'tactics': return <TacticsView />
