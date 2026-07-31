@@ -1,0 +1,52 @@
+name: Apply universal football controls
+
+on:
+  push:
+    branches: [agent/universal-football-controls]
+    paths:
+      - '.github/workflows/apply-universal-controls.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: universal-football-controls
+  cancel-in-progress: false
+
+jobs:
+  apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/universal-football-controls
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Reconstruct and apply controls update
+        run: |
+          cat .github/control-patch/part-*.b64 | tr -d '\n' | base64 --decode > "$RUNNER_TEMP/universal-controls.patch"
+          echo "38673998c62686b9634818fc1409019d1a6cb83512101a73d7544c1634011853  $RUNNER_TEMP/universal-controls.patch" | sha256sum --check -
+          git apply --check "$RUNNER_TEMP/universal-controls.patch"
+          git apply "$RUNNER_TEMP/universal-controls.patch"
+          rm -rf .github/control-patch
+          rm -f .github/workflows/apply-universal-controls.yml
+      - name: Install dependencies
+        run: npm install
+      - name: Validate universal controls
+        run: |
+          npm run input:validate
+          npm run audio:validate
+          npm run human:validate
+          npm run world:validate
+          npm run lint
+          npm run build
+      - name: Commit validated update
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Implement universal cross-device football controls'
+          git push origin HEAD:agent/universal-football-controls
