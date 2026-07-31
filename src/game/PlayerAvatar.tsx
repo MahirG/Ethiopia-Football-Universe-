@@ -14,7 +14,7 @@ import { evaluateInjury, registerMajorEvent, updateEmotion, updatePhysicalState 
 import { assessTackle, refereeReaction } from '../human/officiating'
 import { updateRelationshipAfterEvent } from '../human/relationships'
 import { findRuntime, type HumanWorldBundle } from '../human/world'
-import type { DecisionResult, FootballTechnique, HumanAction, PreferredFoot, VisualMotionState } from '../human/types'
+import type { DecisionResult, FootballTechnique, HumanAction, Perception, PreferredFoot, VisualMotionState } from '../human/types'
 import { defaultTechnique } from '../human/techniques'
 
 interface PlayerAvatarProps {
@@ -114,6 +114,8 @@ export function PlayerAvatar({
   const stepCooldown = useRef(0.18 + index * 0.014)
   const voiceCooldown = useRef(5 + index * 0.53)
   const keeperObservationCooldown = useRef(0)
+  const perceptionCache = useRef<Perception | null>(null)
+  const perceptionCooldown = useRef(index * 0.009)
   const pendingContact = useRef<PendingContact | null>(null)
   const contactSequence = useRef(index * 101 + (team === 'away' ? 4000 : 0))
   const previousBallDistance = useRef(99)
@@ -237,8 +239,19 @@ export function PlayerAvatar({
     voiceCooldown.current -= delta
     decisionCooldown.current -= delta
     keeperObservationCooldown.current -= delta
+    perceptionCooldown.current -= delta
 
-    const perception = perceiveWorld(runtime, humanWorld.world)
+    const perceptionInterval = quality === 'performance'
+      ? (controlled ? 0.05 : 0.12 + (index % 4) * 0.015)
+      : quality === 'balanced'
+        ? (controlled ? 0.025 : 0.055 + (index % 3) * 0.008)
+        : 0
+    let perception = perceptionCache.current
+    if (!perception || perceptionCooldown.current <= 0) {
+      perception = perceiveWorld(runtime, humanWorld.world)
+      perceptionCache.current = perception
+      perceptionCooldown.current = perceptionInterval
+    }
     runtime.nearestOpponentDistance = perception.nearestOpponentDistance
     runtime.nearestTeammateDistance = perception.nearestTeammateDistance
     runtime.offsideRisk = perception.offsideRisk
@@ -339,7 +352,9 @@ if (performContact('dribble', dribbleTarget, perception.pressure, profile.prefer
             runtime.actionStartedAt = now
           }
           decision.current = next
-          decisionCooldown.current = THREE.MathUtils.lerp(0.62, 0.18, profile.ability.reactions) * (difficulty === 'Legendary' ? 0.72 : difficulty === 'Academy' ? 1.28 : 1)
+          decisionCooldown.current = THREE.MathUtils.lerp(0.62, 0.18, profile.ability.reactions)
+            * (difficulty === 'Legendary' ? 0.72 : difficulty === 'Academy' ? 1.28 : 1)
+            * (quality === 'performance' ? 1.7 : quality === 'balanced' ? 1.15 : 1)
         }
         const nextDecision = decision.current
         targetDirection.copy(nextDecision.target).sub(runtime.position).setY(0)
