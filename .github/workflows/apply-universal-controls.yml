@@ -30,7 +30,14 @@ jobs:
           node-version: 22
       - name: Reconstruct and apply controls update
         run: |
+          for file in .github/control-patch/part-*.b64; do
+            printf '%s ' "$(basename "$file")"
+            tr -d '[:space:]' < "$file" | sha256sum | cut -d' ' -f1
+          done
+          printf 'combined-base64 '
+          cat .github/control-patch/part-*.b64 | tr -d '[:space:]' | sha256sum | cut -d' ' -f1
           cat .github/control-patch/part-*.b64 | tr -d '[:space:]' | base64 --decode > "$RUNNER_TEMP/universal-controls.patch"
+          sha256sum "$RUNNER_TEMP/universal-controls.patch"
           echo "38673998c62686b9634818fc1409019d1a6cb83512101a73d7544c1634011853  $RUNNER_TEMP/universal-controls.patch" | sha256sum --check -
           git apply --check "$RUNNER_TEMP/universal-controls.patch"
           git apply "$RUNNER_TEMP/universal-controls.patch"
