@@ -1,4 +1,4 @@
-import type { PresentationPhase, QualityLevel, TeamSide, TimeOfDay, Weather } from '../game/types'
+import type { PresentationPhase, QualityLevel, TimeOfDay, Weather } from '../game/types'
 
 export type CompetitionFormat =
   | 'round-robin'

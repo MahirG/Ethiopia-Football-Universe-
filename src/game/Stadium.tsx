@@ -65,7 +65,7 @@ function Crowd({ side, count, capacityRatio, eventPulse, intensity, homeColor, a
     }
     mesh.current.instanceMatrix.needsUpdate = true
     if (mesh.current.instanceColor) mesh.current.instanceColor.needsUpdate = true
-  }, [awayColor, awaySection, awayShare, capacityRatio, choreography, count, homeColor, leavingRatio, palette, phase, side])
+  }, [awayColor, awayShare, capacityRatio, choreography, count, homeColor, leavingRatio, palette, phase, side])
   useFrame(({ clock }, delta) => {
     if (!group.current) return
     excitement.current = THREE.MathUtils.damp(excitement.current, 0, 0.72, delta)

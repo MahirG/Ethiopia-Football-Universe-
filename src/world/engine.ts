@@ -116,7 +116,6 @@ export function calculateCrowd(context: WorldMatchContext, attendance: Attendanc
   const scoreDifference = context.scoreHome - context.scoreAway
   const late = clamp((context.matchMinute - 65) / 25)
   const closeness = 1 - clamp(Math.abs(scoreDifference) / 4)
-  const importance = importanceWeight[context.selection.importance]
   const tension = clamp(0.18 + late * 0.48 * closeness + context.rivalry * 0.18 + competition.prestige * 0.13)
   const homeEnergy = clamp(attendance.capacityRatio * competition.crowdMultiplier * (0.48 + (scoreDifference > 0 ? 0.3 : scoreDifference < 0 ? -0.15 : 0)) + context.eventPulse * 0.24)
   const awayEnergy = clamp((attendance.away / Math.max(1, attendance.total)) * 3.8 + (scoreDifference < 0 ? 0.42 : 0.08) + context.eventPulse * 0.16)

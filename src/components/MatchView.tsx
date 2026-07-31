@@ -170,7 +170,7 @@ export function MatchView() {
     slides: humanTelemetry.footSlipEvents,
     eventPulse: replayToken > 0 ? 1 : 0,
     lastEvent: message,
-  }), [awayId, homeId, humanTelemetry.footSlipEvents, message, presentationPhase, quality, replayToken, score.away, score.home, score.time, timeOfDay, weather, weatherIntensity, worldSelection])
+  }), [humanTelemetry.footSlipEvents, message, presentationPhase, quality, replayToken, score.away, score.home, score.time, timeOfDay, weather, weatherIntensity, worldSelection])
   const { settings: audioSettings, patch: patchAudioSettings, reset: resetAudioSettings } = useGlobalAudio()
   const audio = useFootballAudio(audioSettings, {
     homeId: home.id,
