@@ -1,2 +1,2 @@
 Trigger the controlled recovery workflow for pending football updates.
-Run 2: recover core engine and Phase 6 on the latest realistic-player main branch.
+Run 3: preserve Phase 5 and realistic players while integrating core and Phase 6.
