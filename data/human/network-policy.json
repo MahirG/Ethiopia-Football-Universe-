@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "authority": {
+    "ball": "server",
+    "collisions": "server",
+    "goals": "server",
+    "cards": "server",
+    "localInput": "client-predicted",
+    "remotePlayers": "interpolated"
+  },
+  "timing": {
+    "simulationHz": 60,
+    "snapshotHz": 20,
+    "interpolationDelayMs": 100,
+    "hardSnapDistanceM": 4,
+    "contactDeduplicationMs": 450
+  },
+  "fairness": ["no-hidden-shot-destination-for-goalkeepers", "server-validates-contact", "semantic-events-not-raw-animation", "no-client-authoritative-ball"]
+}

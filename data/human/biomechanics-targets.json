@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "units": "SI",
+  "sourcePolicy": "Targets are engineering ranges for validation and must be calibrated against licensed professional-football footage and sports-science review.",
+  "metrics": {
+    "sprintAccelerationMps2": { "min": 4.5, "max": 8.5 },
+    "maximumSpeedMps": { "min": 7.2, "max": 10.7 },
+    "turnRadiusM": { "min": 0.55, "max": 4.8 },
+    "strideFrequencyHz": { "min": 2.4, "max": 4.8 },
+    "jumpHeightM": { "min": 0.28, "max": 0.82 },
+    "firstTouchDistanceM": { "min": 0.08, "max": 2.8 },
+    "goalkeeperReactionMs": { "min": 110, "max": 420 },
+    "footSlidingMPerPlant": { "min": 0, "max": 0.18 },
+    "ballContactAngularErrorRad": { "min": 0, "max": 0.26 }
+  },
+  "surfaceModifiers": {
+    "dryNaturalGrass": { "traction": 1, "fatigue": 1, "bounce": 1 },
+    "wetNaturalGrass": { "traction": 0.72, "fatigue": 0.94, "bounce": 0.88 },
+    "mud": { "traction": 0.6, "fatigue": 1.18, "bounce": 0.72 },
+    "artificialTurf": { "traction": 1.06, "fatigue": 1.04, "bounce": 1.08 },
+    "highAltitude2400m": { "traction": 1, "fatigue": 1.12, "bounce": 1 }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "presets": {
+    "performance": {
+      "targetFps": 60,
+      "highDetailDistanceM": 14,
+      "facialMicroDetailDistanceM": 8,
+      "hair": "simplified-cards",
+      "cloth": "procedural-panels",
+      "playerGeometry": "adaptive-low",
+      "maximumVisibleDetailedPlayers": 4
+    },
+    "balanced": {
+      "targetFps": 60,
+      "highDetailDistanceM": 32,
+      "facialMicroDetailDistanceM": 15,
+      "hair": "procedural-clumps",
+      "cloth": "procedural-panels",
+      "playerGeometry": "adaptive-medium",
+      "maximumVisibleDetailedPlayers": 12
+    },
+    "ultra": {
+      "targetFps": 60,
+      "highDetailDistanceM": 56,
+      "facialMicroDetailDistanceM": 24,
+      "hair": "high-density-procedural-clumps",
+      "cloth": "procedural-panels-high",
+      "playerGeometry": "adaptive-high",
+      "maximumVisibleDetailedPlayers": 22
+    }
+  },
+  "futureNativeTargets": { "performanceModeFps": 120, "cinematicPolygonBudget": [150000, 300000], "requiresExternalScans": true }
+}

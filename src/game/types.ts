@@ -16,6 +16,7 @@ export interface MatchTelemetry {
   stamina: number
 }
 
+
 export interface MatchSceneProps {
   running: boolean
   homeColor: string
@@ -34,8 +35,12 @@ export interface MatchSceneProps {
   presentationPhase: PresentationPhase
   celebrationTeam: TeamSide | null
   cameraShake: boolean
+  scoreHome: number
+  scoreAway: number
   onGoal: (team: TeamSide) => void
   onEvent: (message: string) => void
   onAction: (action: MatchAction, team: TeamSide) => void
   onTelemetry: (telemetry: MatchTelemetry) => void
+  onHumanTelemetry: (telemetry: import('../human/types').HumanTelemetry) => void
+  onAudioEvent: (event: import('../audio/types').FootballAudioEvent, context?: Omit<import('../audio/types').AudioEventContext, 'event'>) => void
 }

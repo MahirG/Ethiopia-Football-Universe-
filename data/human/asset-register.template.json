@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "HUMAN_SCAN_REPLACE_ME",
+      "category": "body-scan",
+      "playerOrArchetype": "",
+      "sourceFile": "",
+      "creator": "",
+      "performer": "",
+      "captureDate": "",
+      "polygonCountCinematic": 0,
+      "lods": [],
+      "textures": [],
+      "skeletonVersion": "",
+      "license": "not-cleared",
+      "releaseForm": false,
+      "allowedPlatforms": [],
+      "territories": [],
+      "expiry": null,
+      "status": "required-not-supplied"
+    }
+  ]
+}
