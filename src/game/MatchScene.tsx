@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import { AdaptiveDpr, Sky, SoftShadows } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Physics, type RapierRigidBody } from '@react-three/rapier'
@@ -6,106 +6,71 @@ import * as THREE from 'three'
 import { Football } from './Ball'
 import { CameraRig } from './CameraRig'
 import { CinematicAtmosphere } from './CinematicAtmosphere'
+import { useAmharicCommentary, type CommentaryEvent } from './commentary'
 import { FORMATION, GOAL_HEIGHT, GOAL_WIDTH, HALF_LENGTH, HALF_WIDTH, PLAYER_HEIGHT } from './config'
 import { Pitch } from './Pitch'
 import { PlayerAvatar } from './PlayerAvatar'
 import { QUALITY_PRESETS } from './quality'
 import { Stadium } from './Stadium'
 import { SurfaceEffects } from './SurfaceEffects'
-import type { MatchSceneProps, TimeOfDay, Weather } from './types'
+import type { MatchAction, MatchSceneProps, TeamSide, TimeOfDay } from './types'
 import { useKeyboard } from './useKeyboard'
+import './phase4.css'
 
-interface LightState {
-  ambient: number
-  sun: number
-  color: string
-  hemisphere: string
-  background: string
-  position: [number, number, number]
-  skySun: [number, number, number]
-  turbidity: number
-  rayleigh: number
-}
+type FixedTime = Exclude<TimeOfDay, 'dynamic'>
 
-const LIGHTS: Record<'afternoon' | 'golden' | 'night', LightState> = {
-  afternoon: { ambient: 1.55, sun: 3.7, color: '#fff3d4', hemisphere: '#cfe7ff', background: '#8ec8ed', position: [-38, 52, 22], skySun: [7, 4, -3], turbidity: 7, rayleigh: 1.4 },
-  golden: { ambient: 1.08, sun: 4.5, color: '#ffbd70', hemisphere: '#ffd9b4', background: '#d98d60', position: [-50, 19, -28], skySun: [-8, 1.5, -4], turbidity: 10, rayleigh: 2.5 },
-  night: { ambient: 0.48, sun: 0.38, color: '#9cb8da', hemisphere: '#5f7394', background: '#050b15', position: [12, 38, 25], skySun: [0, -2, 0], turbidity: 14, rayleigh: 0.25 },
-}
-
-function fixedTime(time: TimeOfDay, progress: number): 'afternoon' | 'golden' | 'night' {
+function fixedTime(time: TimeOfDay, progress: number): FixedTime {
   if (time !== 'dynamic') return time
-  return progress < 0.38 ? 'afternoon' : progress < 0.74 ? 'golden' : 'night'
+  return progress < 0.46 ? 'afternoon' : progress < 0.78 ? 'golden' : 'night'
 }
 
-function Lighting({ time, weather, intensity, quality }: { time: 'afternoon' | 'golden' | 'night'; weather: Weather; intensity: number; quality: MatchSceneProps['quality'] }) {
-  const light = LIGHTS[time]
-  const weatherFactor = weather === 'rain' ? 1 - intensity * 0.36 : weather === 'overcast' ? 0.73 : 1
-  const mapSize = QUALITY_PRESETS[quality].shadowMapSize
-  return <>
-    <hemisphereLight args={[weather === 'overcast' ? '#aabcc4' : light.hemisphere, '#163222', light.ambient * weatherFactor]} />
-    <directionalLight position={light.position} color={weather === 'overcast' ? '#d9e0df' : light.color} intensity={light.sun * weatherFactor} castShadow shadow-mapSize-width={mapSize} shadow-mapSize-height={mapSize} shadow-camera-left={-66} shadow-camera-right={66} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-near={1} shadow-camera-far={125} shadow-bias={-0.00016} shadow-normalBias={0.018} />
-  </>
+function lightState(time: FixedTime) {
+  if (time === 'night') return { bg: '#050b15', hemi: '#607695', ambient: 0.5, sun: '#aac5e7', power: 0.45, pos: [12, 38, 25] as [number, number, number], sky: [0, -2, 0] as [number, number, number] }
+  if (time === 'golden') return { bg: '#d98d60', hemi: '#f4c792', ambient: 1.08, sun: '#ffb866', power: 4.4, pos: [-50, 19, -28] as [number, number, number], sky: [-8, 1.5, -4] as [number, number, number] }
+  return { bg: '#8ec8ed', hemi: '#cfe7ff', ambient: 1.55, sun: '#fff3d4', power: 3.7, pos: [-38, 52, 22] as [number, number, number], sky: [7, 4, -3] as [number, number, number] }
 }
 
 function Rain({ count, intensity }: { count: number; intensity: number }) {
   const ref = useRef<THREE.Points>(null)
   const positions = useMemo(() => {
-    const points = new Float32Array(count * 3)
-    for (let index = 0; index < count; index += 1) {
-      points[index * 3] = (Math.random() - 0.5) * 125
-      points[index * 3 + 1] = Math.random() * 38 + 1
-      points[index * 3 + 2] = (Math.random() - 0.5) * 90
-    }
-    return points
+    const values = new Float32Array(count * 3)
+    for (let i = 0; i < count; i += 1) { values[i * 3] = (Math.random() - 0.5) * 125; values[i * 3 + 1] = Math.random() * 38 + 1; values[i * 3 + 2] = (Math.random() - 0.5) * 90 }
+    return values
   }, [count])
-  useFrame((_, delta) => {
-    if (!ref.current) return
-    ref.current.position.y -= delta * (18 + intensity * 18)
-    ref.current.position.x -= delta * (1.3 + intensity * 5)
-    if (ref.current.position.y < -38) { ref.current.position.y = 0; ref.current.position.x = 0 }
-  })
-  return <points ref={ref} frustumCulled={false}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /></bufferGeometry><pointsMaterial color="#d8e9f4" size={0.045 + intensity * 0.04} transparent opacity={0.25 + intensity * 0.42} depthWrite={false} /></points>
+  useFrame((_, delta) => { if (!ref.current) return; ref.current.position.y -= delta * (20 + intensity * 18); ref.current.position.x -= delta * 3; if (ref.current.position.y < -38) ref.current.position.set(0, 0, 0) })
+  return <points ref={ref} frustumCulled={false}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /></bufferGeometry><pointsMaterial color="#d8e9f4" size={0.05 + intensity * 0.035} transparent opacity={0.3 + intensity * 0.4} depthWrite={false} /></points>
 }
 
 interface RuntimeProps extends MatchSceneProps {
   ballRef: { current: RapierRigidBody | null }
   controlledPosition: { current: THREE.Vector3 }
+  scoreGoal: (team: TeamSide) => void
 }
 
-function MatchRuntime({ ballRef, controlledPosition, onGoal, onEvent, onTelemetry, weather, weatherIntensity, matchProgress }: RuntimeProps) {
-  const goalCooldown = useRef(0)
+function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry, weather, weatherIntensity, matchProgress }: RuntimeProps) {
+  const cooldown = useRef(0)
   const lastTelemetry = useRef(0)
   const lastPlayer = useRef(controlledPosition.current.clone())
   const distance = useRef(0)
   useFrame((state, delta) => {
     const ball = ballRef.current
     if (!ball) return
-    goalCooldown.current = Math.max(0, goalCooldown.current - delta)
-    const position = ball.translation()
-    const velocity = ball.linvel()
-    distance.current += controlledPosition.current.distanceTo(lastPlayer.current)
-    lastPlayer.current.copy(controlledPosition.current)
+    cooldown.current = Math.max(0, cooldown.current - delta)
+    const position = ball.translation(), velocity = ball.linvel()
+    distance.current += controlledPosition.current.distanceTo(lastPlayer.current); lastPlayer.current.copy(controlledPosition.current)
     if (weather === 'wind') ball.applyImpulse({ x: 0, y: 0, z: Math.sin(state.clock.elapsedTime * 0.42) * 0.0032 * (0.4 + weatherIntensity) }, true)
     if (state.clock.elapsedTime - lastTelemetry.current > 0.45) {
       lastTelemetry.current = state.clock.elapsedTime
-      const homeTerritory = THREE.MathUtils.clamp(50 + position.x / HALF_LENGTH * 28, 18, 82)
-      onTelemetry({ homeTerritory: Math.round(homeTerritory), awayTerritory: Math.round(100 - homeTerritory), ballSpeed: Math.round(Math.hypot(velocity.x, velocity.y, velocity.z) * 36) / 10, controlledDistance: Math.round(distance.current * 10) / 10, stamina: Math.round(THREE.MathUtils.clamp(100 - matchProgress * 48, 48, 100)) })
+      const home = THREE.MathUtils.clamp(50 + (position.x / HALF_LENGTH) * 28, 18, 82)
+      onTelemetry({ homeTerritory: Math.round(home), awayTerritory: Math.round(100 - home), ballSpeed: Math.round(Math.hypot(velocity.x, velocity.y, velocity.z) * 36) / 10, controlledDistance: Math.round(distance.current * 10) / 10, stamina: Math.round(THREE.MathUtils.clamp(100 - matchProgress * 48, 48, 100)) })
     }
-    const inGoal = Math.abs(position.z) < GOAL_WIDTH / 2 && position.y < GOAL_HEIGHT
-    if (goalCooldown.current === 0 && inGoal && Math.abs(position.x) > HALF_LENGTH + 0.35) {
+    const mouth = Math.abs(position.z) < GOAL_WIDTH / 2 && position.y < GOAL_HEIGHT
+    if (cooldown.current === 0 && mouth && Math.abs(position.x) > HALF_LENGTH + 0.35) {
       const team = position.x > 0 ? 'home' : 'away'
-      onGoal(team)
-      onEvent(team === 'home' ? 'GOAL — home side!' : 'GOAL — away side!')
-      ball.setTranslation({ x: 0, y: 0.28, z: 0 }, true)
-      ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
-      ball.setAngvel({ x: 0, y: 0, z: 0 }, true)
-      goalCooldown.current = 1.5
+      scoreGoal(team); onEvent(team === 'home' ? 'GOAL — home side!' : 'GOAL — away side!')
+      ball.setTranslation({ x: 0, y: 0.28, z: 0 }, true); ball.setLinvel({ x: 0, y: 0, z: 0 }, true); ball.setAngvel({ x: 0, y: 0, z: 0 }, true); cooldown.current = 1.5
     } else if (Math.abs(position.x) > HALF_LENGTH + 5 || Math.abs(position.z) > HALF_WIDTH + 5 || position.y < -2) {
-      ball.setTranslation({ x: 0, y: 0.28, z: 0 }, true)
-      ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
-      ball.setAngvel({ x: 0, y: 0, z: 0 }, true)
-      onEvent('Restart from midfield')
+      ball.setTranslation({ x: 0, y: 0.28, z: 0 }, true); ball.setLinvel({ x: 0, y: 0, z: 0 }, true); ball.setAngvel({ x: 0, y: 0, z: 0 }, true); onEvent('Restart from midfield')
     }
   })
   return null
@@ -116,29 +81,49 @@ export function MatchScene(props: MatchSceneProps) {
   const ballRef = useRef<RapierRigidBody>(null)
   const controlledPosition = useRef(new THREE.Vector3(FORMATION[9][0], PLAYER_HEIGHT / 2, FORMATION[9][1]))
   const preset = QUALITY_PRESETS[props.quality]
-  const resolvedTime = fixedTime(props.timeOfDay, props.matchProgress)
-  const light = LIGHTS[resolvedTime]
-  const weatherBackground = props.weather === 'rain' ? '#647880' : props.weather === 'overcast' ? '#7f949d' : light.background
-  const background = new THREE.Color(light.background).lerp(new THREE.Color(weatherBackground), props.weather === 'clear' || props.weather === 'wind' ? 0 : props.weatherIntensity * 0.82).getStyle()
-  const fogNear = props.weather === 'rain' ? THREE.MathUtils.lerp(72, 36, props.weatherIntensity) : props.weather === 'overcast' ? 58 : 92
-  const fogFar = props.weather === 'rain' ? THREE.MathUtils.lerp(190, 118, props.weatherIntensity) : props.weather === 'overcast' ? 178 : 235
+  const time = fixedTime(props.timeOfDay, props.matchProgress)
+  const light = lightState(time)
+  const commentary = useAmharicCommentary(true, 0.9)
+  const context = useMemo(() => ({ homeName: 'የቤት ቡድን', awayName: 'የእንግዳ ቡድን' }), [])
 
-  return <Canvas className="match-canvas" shadows dpr={preset.dpr} camera={{ position: [0, 26, 38], fov: 45, near: 0.1, far: 280 }} gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: resolvedTime === 'night' ? 0.86 : props.weather === 'overcast' ? 0.94 : 1.06 }} onCreated={({ gl }) => { gl.outputColorSpace = THREE.SRGBColorSpace; gl.shadowMap.type = props.quality === 'ultra' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap }}>
-    <color attach="background" args={[background]} /><fog attach="fog" args={[background, fogNear, fogFar]} />
-    <Sky distance={230} sunPosition={light.skySun} turbidity={props.weather === 'overcast' ? 18 : light.turbidity} rayleigh={props.weather === 'overcast' ? 0.62 : light.rayleigh} mieCoefficient={props.weather === 'rain' ? 0.008 + props.weatherIntensity * 0.016 : 0.006} mieDirectionalG={0.82} />
-    {preset.softShadows && <SoftShadows size={18} samples={14} focus={0.42} />}
-    <Lighting time={resolvedTime} weather={props.weather} intensity={props.weatherIntensity} quality={props.quality} />
-    <Suspense fallback={null}><Physics gravity={[0, -9.81, 0]} paused={!props.running} timeStep={1 / 60} interpolate>
-      <Pitch weather={props.weather} quality={props.quality} eventPulse={props.replayToken} />
-      <Stadium timeOfDay={resolvedTime} weather={props.weather} quality={props.quality} difficulty={props.difficulty} eventPulse={props.replayToken} />
-      <Football ref={ballRef} weather={props.weather} quality={props.quality} />
-      {(['home', 'away'] as const).flatMap((team) => FORMATION.map(([baseX, baseZ], index) => <PlayerAvatar key={`${team}-${index}`} index={index} team={team} position={team === 'home' ? [baseX, PLAYER_HEIGHT / 2, baseZ] : [-baseX, PLAYER_HEIGHT / 2, -baseZ]} color={team === 'home' ? props.homeColor : props.awayColor} secondaryColor={team === 'home' ? props.homeSecondaryColor : props.awaySecondaryColor} controlled={team === 'home' && index === 9} running={props.running && props.cameraMode !== 'free' && !props.replayActive} difficulty={props.difficulty} quality={props.quality} keyboard={keyboard} ballRef={ballRef} controlledPosition={controlledPosition} matchProgress={props.matchProgress} presentationPhase={props.presentationPhase} celebrationTeam={props.celebrationTeam} onEvent={props.onEvent} onAction={props.onAction} />))}
-      <SurfaceEffects ballRef={ballRef} controlledPosition={controlledPosition} quality={props.quality} weather={props.weather} />
-      <MatchRuntime {...props} ballRef={ballRef} controlledPosition={controlledPosition} />
-    </Physics></Suspense>
-    <CinematicAtmosphere timeOfDay={props.timeOfDay} weather={props.weather} weatherIntensity={props.weatherIntensity} quality={props.quality} matchProgress={props.matchProgress} eventPulse={props.replayToken} presentationPhase={props.presentationPhase} />
-    {props.weather === 'rain' && <Rain count={Math.round(preset.rainDrops * (0.45 + props.weatherIntensity * 0.85))} intensity={props.weatherIntensity} />}
-    <CameraRig mode={props.cameraMode} replayToken={props.replayToken} replayActive={props.replayActive} quality={props.quality} presentationPhase={props.presentationPhase} matchProgress={props.matchProgress} cameraShake={props.cameraShake} ballRef={ballRef} controlledPosition={controlledPosition} keyboard={keyboard} />
-    <AdaptiveDpr pixelated={props.quality === 'performance'} />
-  </Canvas>
+  const say = useCallback((event: CommentaryEvent, team?: TeamSide) => commentary.comment(event, { ...context, team }), [commentary, context])
+  const handleAction = useCallback((action: MatchAction, team: TeamSide) => { props.onAction(action, team); say(action, team) }, [props, say])
+  const handleGoal = useCallback((team: TeamSide) => { props.onGoal(team); say('goal', team) }, [props, say])
+
+  useEffect(() => {
+    if (props.presentationPhase === 'intro') say('intro')
+    else if (props.presentationPhase === 'halftime') say('halftime')
+    else if (props.presentationPhase === 'fulltime') say('fulltime')
+  }, [props.presentationPhase, say])
+  useEffect(() => { if (props.running && props.matchProgress < 0.015) say('kickoff') }, [props.matchProgress, props.running, say])
+
+  const weatherBg = props.weather === 'overcast' ? '#7f949d' : props.weather === 'rain' ? '#637780' : light.bg
+  return (
+    <div className="phase4-match-stage">
+      <Canvas className="match-canvas" shadows dpr={preset.dpr} camera={{ position: [0, 26, 38], fov: 45, near: 0.1, far: 280 }} gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: time === 'night' ? 0.86 : 1.04 }}>
+        <color attach="background" args={[weatherBg]} /><fog attach="fog" args={[weatherBg, props.weather === 'rain' ? 42 : 88, props.weather === 'rain' ? 130 : 230]} />
+        <Sky distance={230} sunPosition={light.sky} turbidity={props.weather === 'overcast' ? 18 : 8} rayleigh={props.weather === 'overcast' ? 0.6 : 1.4} mieCoefficient={props.weather === 'rain' ? 0.018 : 0.006} />
+        {preset.softShadows && <SoftShadows size={18} samples={14} focus={0.42} />}
+        <hemisphereLight args={[light.hemi, '#163222', light.ambient]} />
+        <directionalLight position={light.pos} color={light.sun} intensity={light.power} castShadow shadow-mapSize-width={preset.shadowMapSize} shadow-mapSize-height={preset.shadowMapSize} shadow-camera-left={-66} shadow-camera-right={66} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-far={125} shadow-bias={-0.00016} />
+        <Suspense fallback={null}>
+          <Physics gravity={[0, -9.81, 0]} paused={!props.running} timeStep={1 / 60} interpolate>
+            <Pitch weather={props.weather} quality={props.quality} eventPulse={props.replayToken} />
+            <Stadium timeOfDay={time} weather={props.weather} quality={props.quality} difficulty={props.difficulty} eventPulse={props.replayToken} />
+            <Football ref={ballRef} weather={props.weather} quality={props.quality} />
+            {(['home', 'away'] as const).flatMap((team) => FORMATION.map(([x, z], index) => (
+              <PlayerAvatar key={`${team}-${index}`} index={index} team={team} position={team === 'home' ? [x, PLAYER_HEIGHT / 2, z] : [-x, PLAYER_HEIGHT / 2, -z]} color={team === 'home' ? props.homeColor : props.awayColor} secondaryColor={team === 'home' ? props.homeSecondaryColor : props.awaySecondaryColor} controlled={team === 'home' && index === 9} running={props.running && props.cameraMode !== 'free' && !props.replayActive} difficulty={props.difficulty} quality={props.quality} keyboard={keyboard} ballRef={ballRef} controlledPosition={controlledPosition} matchProgress={props.matchProgress} presentationPhase={props.presentationPhase} celebrationTeam={props.celebrationTeam} onEvent={props.onEvent} onAction={handleAction} />
+            )))}
+            <SurfaceEffects ballRef={ballRef} controlledPosition={controlledPosition} quality={props.quality} weather={props.weather} />
+            <Runtime {...props} scoreGoal={handleGoal} ballRef={ballRef} controlledPosition={controlledPosition} />
+          </Physics>
+        </Suspense>
+        <CinematicAtmosphere timeOfDay={props.timeOfDay} weather={props.weather} weatherIntensity={props.weatherIntensity} quality={props.quality} matchProgress={props.matchProgress} eventPulse={props.replayToken} presentationPhase={props.presentationPhase} />
+        {props.weather === 'rain' && <Rain count={Math.round(preset.rainDrops * (0.45 + props.weatherIntensity * 0.85))} intensity={props.weatherIntensity} />}
+        <CameraRig mode={props.cameraMode} replayToken={props.replayToken} replayActive={props.replayActive} quality={props.quality} presentationPhase={props.presentationPhase} matchProgress={props.matchProgress} cameraShake={props.cameraShake} ballRef={ballRef} controlledPosition={controlledPosition} keyboard={keyboard} />
+        <AdaptiveDpr pixelated={props.quality === 'performance'} />
+      </Canvas>
+      {commentary.caption && <div className="amharic-commentary" role="status" aria-live="polite"><span>ቀጥታ አማርኛ</span><strong>{commentary.caption}</strong></div>}
+    </div>
+  )
 }
