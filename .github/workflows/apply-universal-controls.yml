@@ -60,8 +60,10 @@ jobs:
           text = text.replace('<span>B SKILL/span>', '<span>B SKILL</span>')
           repaired.write_text(text)
           PY
-          git apply --recount --check "$RUNNER_TEMP/universal-controls.patch"
-          git apply --recount "$RUNNER_TEMP/universal-controls.patch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-edit origin/main
+          git apply --3way --recount "$RUNNER_TEMP/universal-controls.patch"
           rm -rf .github/control-patch
           rm -f .github/workflows/apply-universal-controls.yml
       - name: Install dependencies
@@ -76,8 +78,6 @@ jobs:
           npm run build
       - name: Commit validated update
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git commit -m 'Implement universal cross-device football controls'
           git push origin HEAD:agent/universal-football-controls
