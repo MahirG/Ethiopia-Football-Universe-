@@ -248,7 +248,6 @@ export class CompetitiveMatchDirector {
   tick(context: CompetitiveTickContext): CompetitiveTickResult {
     this.clock = context.now
     const ballPosition = context.ballPosition
-    const ballVelocity = context.ballVelocity
     const homeTactic = getTacticalPreset(this.settings.homeTacticId)
     const awayTactic = getTacticalPreset(this.settings.awayTacticId)
     const inferredPossession = inferPossession(context.players, ballPosition)

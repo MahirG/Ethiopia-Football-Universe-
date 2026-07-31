@@ -60,7 +60,6 @@ export function tacticalAnchor(
     target.z += Math.sign(base.z || (player.index % 2 ? 1 : -1)) * lane * preset.width * 3
   }
   if (restart) {
-    const distance = player.position.distanceTo(new THREE.Vector3(...restart.position))
     if (restart.team === player.team) {
       const angle = (player.index / 11) * Math.PI * 2
       const radius = restart.type === 'corner' ? 8 + (player.index % 5) * 2.3 : restart.type === 'penalty' ? 16 : 6 + (player.index % 4) * 2
