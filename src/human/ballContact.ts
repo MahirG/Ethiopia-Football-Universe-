@@ -14,7 +14,7 @@ function rotatePlanar(vector: THREE.Vector3, radians: number) {
 }
 
 export function calculateBallContact(request: BallContactRequest): BallContactResult {
-  const { action, player, runtime, ballPosition, ballVelocity, target, pressure, weather, weatherIntensity, matchProgress, contactSide, seed } = request
+  const { action, player, runtime, ballPosition, ballVelocity, target, pressure, weather, weatherIntensity, contactSide, seed } = request
   const technique = TECHNIQUES[request.technique ?? defaultTechnique(action, ballPosition.y, runtime.velocity.length() > 6.5)]
   const ability = action === 'shoot'
     ? player.ability.shooting

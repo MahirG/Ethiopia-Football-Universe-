@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
-import { HALF_LENGTH, HALF_WIDTH, PLAYER_HEIGHT } from './config'
+import { HALF_LENGTH, HALF_WIDTH } from './config'
 import type { Difficulty, MatchAction, PresentationPhase, QualityLevel, TeamSide, Weather } from './types'
 import type { KeyboardState } from './useKeyboard'
 import type { AudioEventContext, FootballAudioEvent } from '../audio/types'
@@ -187,7 +187,6 @@ export function PlayerAvatar({
       if (action === 'tackle' || action === 'intercept') {
         const opponentInfo = nearestOpponent(runtime.id, team, humanWorld)
         if (opponentInfo && opponentInfo.distance < 1.35) {
-          const opponentProfile = humanWorld.profiles.get(opponentInfo.player.id)
           const opponentGoalX = team === 'home' ? HALF_LENGTH : -HALF_LENGTH
           const lastDefender = Math.abs(opponentInfo.player.position.x - opponentGoalX) < 18
           const assessment = assessTackle(runtime, profile, opponentInfo.player, ballPosition, result.soundForce, lastDefender)
