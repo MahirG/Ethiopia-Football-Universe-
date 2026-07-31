@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
-import { HALF_LENGTH, HALF_WIDTH, PLAYER_HEIGHT } from './config'
+import { HALD_LENGTH, HALF_WIDTH, PLAYER_HEIGHT } from './config'
 import type { Difficulty, MatchAction, PresentationPhase, QualityLevel, TeamSide } from './types'
 import type { KeyboardState } from './useKeyboard'
 
@@ -128,7 +128,7 @@ function Head({ skin, hair, face, curls, beard, quality, headRef }: {
 }
 
 export function PlayerAvatar(props: Props) {
-  const { index, team, position, color, secondaryColor, controlled = false, running, difficulty, quality, keyboard, ballRef, controlledPosition, matchProgress, presentationPhase, celebrationTeam, onEvent, onAction } = props
+  const { index, team, position, color, secondaryColor, controlled = false, running, difficulty, quality, keyboard, ballRef, controlledPosition, presentationPhase, celebrationTeam, onEvent, onAction } = props
   const bodyRef = useRef<RapierRigidBody>(null)
   const rootRef = useRef<THREE.Group>(null)
   const torsoRef = useRef<THREE.Group>(null)
@@ -186,7 +186,8 @@ export function PlayerAvatar(props: Props) {
     } else {
       const ownGoalX = team === 'home' ? -HALF_LENGTH + 0.9 : HALF_LENGTH - 0.9
       const attack = team === 'home' ? 1 : -1
-      const threat = goalkeeper && ballT && ((team === 'home' && ball?.linvel().x! < -1) || (team === 'away' && ball?.linvel().x! > 1)) && Math.abs(ballT.x - ownGoalX) < 18
+      const ballVelocity = ball?.linvel()
+      const threat = Boolean(goalkeeper && ballT && ballVelocity && ((team === 'home' && ballVelocity.x < -1) || (team === 'away' && ballVelocity.x > 1)) && Math.abs(ballT.x - ownGoalX) < 18)
       if (goalkeeper) target.set(ownGoalX + attack * 1.1, 0, THREE.MathUtils.clamp(threat && ballT ? ballT.z : (ballT?.z ?? 0) * 0.35, -3.1, 3.1))
       else if (ballT && Math.hypot(ballT.x - current.x, ballT.z - current.z) < 8 + (difficulty === 'Legendary' ? 8 : 4)) target.set(ballT.x, 0, ballT.z)
       else target.copy(home)
