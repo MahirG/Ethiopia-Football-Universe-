@@ -17,22 +17,22 @@ jobs:
           ref: agent/phase-5-competitive-intelligence
           fetch-depth: 0
       - name: Apply verified Phase 5 patch
-        if: hashFiles('.phase5/complete.patch.gz.b64') != ''
+        if: hashFiles('.phase5/READY') != ''
         run: |
-          base64 -d .phase5/complete.patch.gz.b64 | gzip -d > "$RUNNER_TEMP/phase5.patch"
+          cat .phase5/parts/*.patch > "$RUNNER_TEMP/phase5.patch"
           echo '3cd8e8b627453ba29a9e073b18d174ff619e602c08ce37cf6b95eebd9ee3f6f8  '"$RUNNER_TEMP/phase5.patch" | sha256sum -c -
           git apply --check "$RUNNER_TEMP/phase5.patch"
           git apply "$RUNNER_TEMP/phase5.patch"
       - name: Install dependencies
-        if: hashFiles('.phase5/complete.patch.gz.b64') != ''
+        if: hashFiles('.phase5/READY') != ''
         run: npm install
       - name: Validate Phase 5
-        if: hashFiles('.phase5/complete.patch.gz.b64') != ''
+        if: hashFiles('.phase5/READY') != ''
         run: |
           npm run lint
           npm run build
       - name: Commit completed implementation
-        if: hashFiles('.phase5/complete.patch.gz.b64') != ''
+        if: hashFiles('.phase5/READY') != ''
         run: |
           rm -rf .phase5
           rm -f .github/workflows/phase5-materialize.yml
