@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "boundaryDecisions": ["goal", "throw-in", "corner", "goal-kick"],
+  "offside": { "evaluateAtPass": true, "penalizeOnInvolvement": true, "visibleTrainingLine": true },
+  "discipline": ["play-on", "advantage", "foul", "yellow-card", "red-card", "penalty"],
+  "var": { "enabledByDefault": true, "reviewable": ["goal", "penalty", "direct-red", "mistaken-identity", "offside"], "minimumIntervention": "clear-and-obvious configurable threshold" },
+  "addedTimeSources": ["restarts", "cards", "var-reviews"]
+}
