@@ -6,7 +6,7 @@ import * as THREE from 'three'
 import { Football } from './Ball'
 import { CameraRig } from './CameraRig'
 import { CinematicAtmosphere } from './CinematicAtmosphere'
-import { FORMATION, GOAL_HEIGHT, GOAL_WIDTH, HALF_LENGTH, HALF_WIDTH, PLAYER_HEIGHT } from './config'
+import { BALL_RADIUS, FORMATION, HALF_LENGTH, PLAYER_HEIGHT } from './config'
 import { Pitch } from './Pitch'
 import { PlayerAvatar } from './PlayerAvatar'
 import { QUALITY_PRESETS } from './quality'
@@ -16,6 +16,8 @@ import type { MatchAction, MatchSceneProps, TeamSide, TimeOfDay } from './types'
 import { useKeyboard } from './useKeyboard'
 import { createHumanWorld, updateHumanTelemetry, type HumanWorldBundle } from '../human/world'
 import { WorldLayer } from '../world/WorldLayer'
+import { CoreMatchGameplayEngine } from '../core/engine'
+import type { CorePlayerSnapshot } from '../core/types'
 import './phase4.css'
 import '../human/human.css'
 
@@ -66,9 +68,10 @@ interface RuntimeProps extends MatchSceneProps {
   controlledPosition: { current: THREE.Vector3 }
   scoreGoal: (team: TeamSide) => void
   humanWorld: HumanWorldBundle
+  coreEngine: CoreMatchGameplayEngine
 }
 
-function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry, weather, weatherIntensity, matchProgress, humanWorld, ...props }: RuntimeProps) {
+function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry, weather, weatherIntensity, matchProgress, humanWorld, coreEngine, ...props }: RuntimeProps) {
   const cooldown = useRef(0)
   const lastTelemetry = useRef(0)
   const lastPlayer = useRef(controlledPosition.current.clone())
@@ -76,6 +79,8 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry,
   const rollCooldown = useRef(0)
   const previousVerticalSpeed = useRef(0)
   const humanTelemetryCooldown = useRef(0)
+  const lastTouchPlayerId = useRef<string | null>(null)
+  const lastTouchTeam = useRef<TeamSide | null>(null)
 
   useFrame((state, delta) => {
     const ball = ballRef.current
@@ -95,6 +100,69 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry,
     humanWorld.world.scoreHome = props.scoreHome
     humanWorld.world.scoreAway = props.scoreAway
     humanWorld.world.eventPulse = props.replayToken
+
+    const touchingPlayer = humanWorld.world.players.find((player) => player.onBall)
+    if (touchingPlayer) {
+      lastTouchPlayerId.current = touchingPlayer.id
+      lastTouchTeam.current = touchingPlayer.team
+    }
+
+    const corePlayers = humanWorld.world.players.flatMap<CorePlayerSnapshot>((player) => {
+      const profile = humanWorld.profiles.get(player.id)
+      if (!profile) return []
+      return [{
+        id: player.id,
+        team: player.team,
+        index: player.index,
+        role: player.role,
+        position: player.position,
+        velocity: player.velocity,
+        facing: player.facing,
+        fatigue: player.physical.fatigue,
+        balance: player.physical.balance,
+        strength: profile.ability.strength,
+        awareness: (profile.ability.vision + profile.ability.reactions) / 2,
+        discipline: profile.personality.discipline,
+        reaction: profile.ability.reactions,
+        onBall: player.onBall,
+        action: player.action,
+      }]
+    })
+    const windStrength = (weather === 'wind' || weather === 'storm') ? weatherIntensity * props.world.telemetry.windExposure : 0
+    const coreResult = coreEngine.tick({
+      delta,
+      simulationTime: state.clock.elapsedTime,
+      matchMinute: props.matchMinute,
+      running: props.running,
+      scoreHome: props.scoreHome,
+      scoreAway: props.scoreAway,
+      weather,
+      weatherIntensity,
+      ball: {
+        position,
+        velocity,
+        angularVelocity,
+        radius: BALL_RADIUS,
+        lastTouchPlayerId: lastTouchPlayerId.current,
+        lastTouchTeam: lastTouchTeam.current,
+      },
+      players: corePlayers,
+      surface: {
+        grip: props.world.pitch.grip,
+        rollingResistance: props.world.pitch.rollingResistance,
+        restitution: props.world.pitch.bounce,
+        wetness: props.world.pitch.moisture,
+        unevenness: props.world.pitch.divots,
+        altitudeMeters: props.world.venue.altitudeM,
+        temperatureC: props.world.pitch.temperatureC,
+        wind: { x: windStrength * 0.35, y: 0, z: windStrength },
+      },
+    })
+    ball.applyImpulse({
+      x: coreResult.environmentalAcceleration.x * delta,
+      y: coreResult.environmentalAcceleration.y * delta,
+      z: coreResult.environmentalAcceleration.z * delta,
+    }, true)
 
     distance.current += controlledPosition.current.distanceTo(lastPlayer.current)
     lastPlayer.current.copy(controlledPosition.current)
@@ -133,6 +201,7 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry,
         ballSpeed: Math.round(Math.hypot(velocity.x, velocity.y, velocity.z) * 36) / 10,
         controlledDistance: Math.round(distance.current * 10) / 10,
         stamina: Math.round((1 - (controlledRuntime?.physical.fatigue ?? matchProgress * 0.5)) * 100),
+        core: coreResult.telemetry,
       })
     }
 
@@ -142,9 +211,8 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry,
       humanTelemetryCooldown.current = 0.5
     }
 
-    const mouth = Math.abs(position.z) < GOAL_WIDTH / 2 && position.y < GOAL_HEIGHT
-    if (cooldown.current === 0 && mouth && Math.abs(position.x) > HALF_LENGTH + 0.35) {
-      const team = position.x > 0 ? 'home' : 'away'
+    if (cooldown.current === 0 && coreResult.newRestart?.reason === 'goal' && coreResult.ruleDecision.goal) {
+      const team = coreResult.ruleDecision.goal
       props.onAudioEvent('net-hit', {
         team,
         position: [position.x, position.y, position.z],
@@ -156,12 +224,19 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onEvent, onTelemetry,
       ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
       ball.setAngvel({ x: 0, y: 0, z: 0 }, true)
       cooldown.current = 1.5
-    } else if (Math.abs(position.x) > HALF_LENGTH + 5 || Math.abs(position.z) > HALF_WIDTH + 5 || position.y < -2) {
+    } else if (cooldown.current === 0 && coreResult.newRestart) {
+      const restart = coreResult.newRestart
+      ball.setTranslation({ x: restart.location.x, y: Math.max(0.28, restart.location.y), z: restart.location.z }, true)
+      ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      ball.setAngvel({ x: 0, y: 0, z: 0 }, true)
+      props.onAudioEvent('ball-kicked', { position: [restart.location.x, restart.location.y, restart.location.z], force: 0.35, team: restart.team ?? undefined })
+      onEvent(`${restart.type.replaceAll('-', ' ')} · ${restart.team ?? 'official'} restart`)
+      cooldown.current = 0.8
+    } else if (Math.abs(position.x) > HALF_LENGTH + 8 || Math.abs(position.z) > 42 || position.y < -2) {
       ball.setTranslation({ x: 0, y: 0.28, z: 0 }, true)
       ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
       ball.setAngvel({ x: 0, y: 0, z: 0 }, true)
-      props.onAudioEvent('ball-kicked', { position: [0, 0.28, 0], force: 0.4 })
-      onEvent('Restart from midfield')
+      onEvent('Safety recovery · dropped ball')
     }
   })
   return null
@@ -174,6 +249,9 @@ export function MatchScene(props: MatchSceneProps) {
   const humanWorldRef = useRef<HumanWorldBundle | null>(null)
   if (!humanWorldRef.current) humanWorldRef.current = createHumanWorld(props.weather, props.weatherIntensity)
   const humanWorld = humanWorldRef.current
+  const coreEngineRef = useRef<CoreMatchGameplayEngine | null>(null)
+  if (!coreEngineRef.current) coreEngineRef.current = new CoreMatchGameplayEngine()
+  const coreEngine = coreEngineRef.current
   const preset = QUALITY_PRESETS[props.quality]
   const time = fixedTime(props.timeOfDay, props.matchProgress)
   const light = lightState(time)
@@ -231,7 +309,7 @@ export function MatchScene(props: MatchSceneProps) {
               />
             )))}
             <SurfaceEffects ballRef={ballRef} controlledPosition={controlledPosition} quality={props.quality} weather={props.weather} />
-            <Runtime {...props} scoreGoal={handleGoal} ballRef={ballRef} controlledPosition={controlledPosition} humanWorld={humanWorld} />
+            <Runtime {...props} scoreGoal={handleGoal} ballRef={ballRef} controlledPosition={controlledPosition} humanWorld={humanWorld} coreEngine={coreEngine} />
           </Physics>
         </Suspense>
         <CinematicAtmosphere timeOfDay={props.timeOfDay} weather={props.weather} weatherIntensity={props.weatherIntensity} quality={props.quality} matchProgress={props.matchProgress} eventPulse={props.replayToken} presentationPhase={props.presentationPhase} />

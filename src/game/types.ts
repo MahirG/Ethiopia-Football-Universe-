@@ -14,6 +14,7 @@ export interface MatchTelemetry {
   ballSpeed: number
   controlledDistance: number
   stamina: number
+  core: import('../core/types').CoreTelemetry | null
 }
 
 export interface MatchSceneProps {
@@ -33,6 +34,7 @@ export interface MatchSceneProps {
   replayToken: number
   replayActive: boolean
   matchProgress: number
+  matchMinute: number
   presentationPhase: PresentationPhase
   celebrationTeam: TeamSide | null
   cameraShake: boolean

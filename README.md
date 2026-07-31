@@ -9,6 +9,7 @@ A production-oriented, responsive Ethiopian football web game and management uni
 
 ## What is implemented
 
+- **AAA core match gameplay engine** — a deterministic, modular authority layer now drives independent-ball environmental forces, possession confidence, entire-ball goal/out detection, legal restarts, added-time accounting, tactical phases, pressing, referee evidence, VAR-ready reviews, goalkeeper reads, set pieces, medical protocols, substitutions, event-derived statistics/xG, replay capture, cross-device assists, network validation, anti-cheat telemetry and platform simulation budgets. All 95 supplied requirements are mapped in `docs/core/IMPLEMENTATION_MATRIX.md` and validated by `npm run core:validate`.
 - **Phase 4 human match presentation** — improved anatomical silhouettes, proportionally varied faces and bodies, realistic hands, knees, calves, boots, hair and facial hair, plus smarter goalkeepers that read shots, move laterally and make reactive saves.
 - **Live Amharic commentator** — spoken and captioned Amharic calls for introductions, kick-off, passing, shots, goalkeeper saves, goals, restarts, half-time, second-half and final results. Speech uses the browser voice engine and falls back to synchronized Ethiopic subtitles when an `am-ET` voice is unavailable.
 - **Phase 3 prime match broadcast** — televised opening sequence, halftime and full-time packages, team celebrations, cinematic replay direction, live data panels and immersive presentation modes.
@@ -103,6 +104,7 @@ npm run preview
 
 ```text
 src/
+├── core/            # Authoritative states, rules, physics, tactics, officials, set pieces, stats, networking and QA
 ├── components/      # Product surfaces and prime broadcast match interface
 ├── data/            # Data-driven clubs and localized content
 ├── hooks/           # Persistent local state
@@ -150,3 +152,5 @@ This repository does not claim affiliation with the Ethiopian Football Federatio
 The match now runs through a data-driven football-world layer with configurable competitions, tournament rules, Ethiopian venue archetypes, engineered surfaces, ball profiles, dynamic attendance, crowd groups and emotional memory, active benches and stadium staff, synchronized screens, match-day phases, cultural presentation, ceremonies, accessibility controls, world networking snapshots and automated validation. See `src/world/`, `data/world/` and `docs/world/`.
 
 Run `npm run world:validate` to validate the competition, venue, surface, ball, operations and network manifests.
+
+Run `npm run core:validate` to verify the complete 95-requirement gameplay manifest, module coverage and live match integration.

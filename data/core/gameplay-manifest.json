@@ -1,0 +1,936 @@
+{
+  "name": "AAA Core Football Match Gameplay Engine",
+  "version": "2.0.0",
+  "target": "browser-native deterministic football simulation",
+  "principles": {
+    "independentBall": true,
+    "noScripting": true,
+    "sameRulesForAIAndUsers": true,
+    "serverVerifiable": true,
+    "modularSystems": true
+  },
+  "requirements": [
+    {
+      "id": 1,
+      "title": "CORE GAMEPLAY PHILOSOPHY",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/stateMachine.ts",
+        "src/core/clock.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "MATCH SIMULATION ARCHITECTURE",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/stateMachine.ts",
+        "src/core/clock.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 3,
+      "title": "MATCH STATE MACHINE",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/stateMachine.ts",
+        "src/core/clock.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "MATCH CLOCK",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/stateMachine.ts",
+        "src/core/clock.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 5,
+      "title": "KICKOFF SYSTEM",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/stateMachine.ts",
+        "src/core/clock.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 6,
+      "title": "BALL PHYSICS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/physics.ts",
+        "src/human/ballContact.ts",
+        "src/game/Ball.tsx"
+      ]
+    },
+    {
+      "id": 7,
+      "title": "BALL CONTACT ENGINE",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/physics.ts",
+        "src/human/ballContact.ts",
+        "src/game/Ball.tsx"
+      ]
+    },
+    {
+      "id": 8,
+      "title": "POSSESSION MODEL",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/physics.ts",
+        "src/human/ballContact.ts",
+        "src/game/Ball.tsx"
+      ]
+    },
+    {
+      "id": 9,
+      "title": "PLAYER MOVEMENT",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/biomechanics.ts",
+        "src/game/PlayerAvatar.tsx",
+        "src/core/physics.ts"
+      ]
+    },
+    {
+      "id": 10,
+      "title": "RESPONSIVENESS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/biomechanics.ts",
+        "src/game/PlayerAvatar.tsx",
+        "src/core/physics.ts"
+      ]
+    },
+    {
+      "id": 11,
+      "title": "ANIMATION SYSTEM",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/biomechanics.ts",
+        "src/game/PlayerAvatar.tsx",
+        "src/core/physics.ts"
+      ]
+    },
+    {
+      "id": 12,
+      "title": "FIRST TOUCH",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/biomechanics.ts",
+        "src/game/PlayerAvatar.tsx",
+        "src/core/physics.ts"
+      ]
+    },
+    {
+      "id": 13,
+      "title": "DRIBBLING",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/biomechanics.ts",
+        "src/game/PlayerAvatar.tsx",
+        "src/core/physics.ts"
+      ]
+    },
+    {
+      "id": 14,
+      "title": "SKILL MOVES",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/biomechanics.ts",
+        "src/game/PlayerAvatar.tsx",
+        "src/core/physics.ts"
+      ]
+    },
+    {
+      "id": 15,
+      "title": "SHIELDING THE BALL",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/biomechanics.ts",
+        "src/game/PlayerAvatar.tsx",
+        "src/core/physics.ts"
+      ]
+    },
+    {
+      "id": 16,
+      "title": "PASSING SYSTEM",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/ballContact.ts",
+        "src/human/techniques.ts",
+        "src/core/controls.ts"
+      ]
+    },
+    {
+      "id": 17,
+      "title": "PASS TARGET SELECTION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/ballContact.ts",
+        "src/human/techniques.ts",
+        "src/core/controls.ts"
+      ]
+    },
+    {
+      "id": 18,
+      "title": "THROUGH BALLS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/ballContact.ts",
+        "src/human/techniques.ts",
+        "src/core/controls.ts"
+      ]
+    },
+    {
+      "id": 19,
+      "title": "CROSSING",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/ballContact.ts",
+        "src/human/techniques.ts",
+        "src/core/controls.ts"
+      ]
+    },
+    {
+      "id": 20,
+      "title": "SHOOTING SYSTEM",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/ballContact.ts",
+        "src/human/techniques.ts",
+        "src/core/controls.ts"
+      ]
+    },
+    {
+      "id": 21,
+      "title": "SHOT ACCURACY",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/ballContact.ts",
+        "src/human/techniques.ts",
+        "src/core/controls.ts"
+      ]
+    },
+    {
+      "id": 22,
+      "title": "AERIAL FOOTBALL",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/ballContact.ts",
+        "src/human/techniques.ts",
+        "src/core/controls.ts"
+      ]
+    },
+    {
+      "id": 23,
+      "title": "DEFENDING PHILOSOPHY",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/PlayerAvatar.tsx",
+        "src/human/officiating.ts",
+        "src/core/referee.ts"
+      ]
+    },
+    {
+      "id": 24,
+      "title": "JOCKEYING",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/PlayerAvatar.tsx",
+        "src/human/officiating.ts",
+        "src/core/referee.ts"
+      ]
+    },
+    {
+      "id": 25,
+      "title": "STANDING TACKLES",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/PlayerAvatar.tsx",
+        "src/human/officiating.ts",
+        "src/core/referee.ts"
+      ]
+    },
+    {
+      "id": 26,
+      "title": "SLIDING TACKLES",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/PlayerAvatar.tsx",
+        "src/human/officiating.ts",
+        "src/core/referee.ts"
+      ]
+    },
+    {
+      "id": 27,
+      "title": "INTERCEPTIONS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/PlayerAvatar.tsx",
+        "src/human/officiating.ts",
+        "src/core/referee.ts"
+      ]
+    },
+    {
+      "id": 28,
+      "title": "BLOCKING",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/PlayerAvatar.tsx",
+        "src/human/officiating.ts",
+        "src/core/referee.ts"
+      ]
+    },
+    {
+      "id": 29,
+      "title": "PHYSICAL DUELS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/PlayerAvatar.tsx",
+        "src/human/officiating.ts",
+        "src/core/referee.ts"
+      ]
+    },
+    {
+      "id": 30,
+      "title": "FALLS AND RECOVERY",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/PlayerAvatar.tsx",
+        "src/human/officiating.ts",
+        "src/core/referee.ts"
+      ]
+    },
+    {
+      "id": 31,
+      "title": "FOUL DETECTION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/rules.ts",
+        "src/core/referee.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 32,
+      "title": "REFEREE PERSONALITY AND ACCURACY",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/rules.ts",
+        "src/core/referee.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 33,
+      "title": "ADVANTAGE RULE",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/rules.ts",
+        "src/core/referee.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 34,
+      "title": "CARDS AND DISCIPLINE",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/rules.ts",
+        "src/core/referee.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 35,
+      "title": "HANDBALL",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/rules.ts",
+        "src/core/referee.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 36,
+      "title": "OFFSIDE SYSTEM",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/rules.ts",
+        "src/core/referee.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 37,
+      "title": "VAR SYSTEM",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/rules.ts",
+        "src/core/referee.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 38,
+      "title": "GOAL DETECTION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/rules.ts",
+        "src/core/referee.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 39,
+      "title": "GOALKEEPER SYSTEM",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/goalkeeper.ts",
+        "src/game/PlayerAvatar.tsx"
+      ]
+    },
+    {
+      "id": 40,
+      "title": "GOALKEEPER SAVES",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/goalkeeper.ts",
+        "src/game/PlayerAvatar.tsx"
+      ]
+    },
+    {
+      "id": 41,
+      "title": "ONE-ON-ONE SITUATIONS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/goalkeeper.ts",
+        "src/game/PlayerAvatar.tsx"
+      ]
+    },
+    {
+      "id": 42,
+      "title": "GOALKEEPER DISTRIBUTION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/goalkeeper.ts",
+        "src/game/PlayerAvatar.tsx"
+      ]
+    },
+    {
+      "id": 43,
+      "title": "THROW-INS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/setPieces.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 44,
+      "title": "CORNER KICKS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/setPieces.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 45,
+      "title": "FREE KICKS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/setPieces.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 46,
+      "title": "PENALTIES",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/setPieces.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 47,
+      "title": "DROP BALLS AND UNUSUAL RESTARTS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/setPieces.ts",
+        "src/core/stateMachine.ts"
+      ]
+    },
+    {
+      "id": 48,
+      "title": "SUBSTITUTIONS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/medical.ts",
+        "src/human/state.ts"
+      ]
+    },
+    {
+      "id": 49,
+      "title": "INJURIES",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/medical.ts",
+        "src/human/state.ts"
+      ]
+    },
+    {
+      "id": 50,
+      "title": "HEAD-INJURY PROTOCOL",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/medical.ts",
+        "src/human/state.ts"
+      ]
+    },
+    {
+      "id": 51,
+      "title": "FATIGUE",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/medical.ts",
+        "src/human/state.ts"
+      ]
+    },
+    {
+      "id": 52,
+      "title": "STAMINA MANAGEMENT",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/medical.ts",
+        "src/human/state.ts"
+      ]
+    },
+    {
+      "id": 53,
+      "title": "PLAYER ATTRIBUTES",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/types.ts",
+        "src/human/state.ts",
+        "src/human/profiles.ts"
+      ]
+    },
+    {
+      "id": 54,
+      "title": "PLAYER FORM AND CONFIDENCE",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/human/types.ts",
+        "src/human/state.ts",
+        "src/human/profiles.ts"
+      ]
+    },
+    {
+      "id": 55,
+      "title": "TEAM TACTICAL STRUCTURE",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/tactics.ts",
+        "src/human/decisionAI.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 56,
+      "title": "ATTACKING AI",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/tactics.ts",
+        "src/human/decisionAI.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 57,
+      "title": "DEFENSIVE AI",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/tactics.ts",
+        "src/human/decisionAI.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 58,
+      "title": "PRESSING",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/tactics.ts",
+        "src/human/decisionAI.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 59,
+      "title": "TRANSITIONS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/tactics.ts",
+        "src/human/decisionAI.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 60,
+      "title": "PLAYER ROLES",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/tactics.ts",
+        "src/human/decisionAI.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 61,
+      "title": "DIFFICULTY SYSTEM",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/tactics.ts",
+        "src/human/decisionAI.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 62,
+      "title": "NO SCRIPTING POLICY",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/tactics.ts",
+        "src/human/decisionAI.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 63,
+      "title": "ASSIST SYSTEMS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/tactics.ts",
+        "src/human/decisionAI.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 64,
+      "title": "MATCH MOMENTUM WITHOUT MANIPULATION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/tactics.ts",
+        "src/human/decisionAI.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 65,
+      "title": "WEATHER EFFECTS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/world/engine.ts",
+        "src/core/physics.ts",
+        "src/core/rules.ts"
+      ]
+    },
+    {
+      "id": 66,
+      "title": "PITCH CONDITION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/world/engine.ts",
+        "src/core/physics.ts",
+        "src/core/rules.ts"
+      ]
+    },
+    {
+      "id": 67,
+      "title": "BALL OUT OF PLAY",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/world/engine.ts",
+        "src/core/physics.ts",
+        "src/core/rules.ts"
+      ]
+    },
+    {
+      "id": 68,
+      "title": "COLLISION BOUNDARIES",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/world/engine.ts",
+        "src/core/physics.ts",
+        "src/core/rules.ts"
+      ]
+    },
+    {
+      "id": 69,
+      "title": "CAMERA READABILITY",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/CameraRig.tsx",
+        "src/components/MatchView.tsx",
+        "src/audio/engine.ts"
+      ]
+    },
+    {
+      "id": 70,
+      "title": "MATCH HUD",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/CameraRig.tsx",
+        "src/components/MatchView.tsx",
+        "src/audio/engine.ts"
+      ]
+    },
+    {
+      "id": 71,
+      "title": "RADAR AND TACTICAL MAP",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/CameraRig.tsx",
+        "src/components/MatchView.tsx",
+        "src/audio/engine.ts"
+      ]
+    },
+    {
+      "id": 72,
+      "title": "AUDIO FEEDBACK",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/CameraRig.tsx",
+        "src/components/MatchView.tsx",
+        "src/audio/engine.ts"
+      ]
+    },
+    {
+      "id": 73,
+      "title": "COMMENTARY EVENT DATA",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/game/CameraRig.tsx",
+        "src/components/MatchView.tsx",
+        "src/audio/engine.ts"
+      ]
+    },
+    {
+      "id": 74,
+      "title": "MATCH STATISTICS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/statistics.ts",
+        "src/game/CameraRig.tsx"
+      ]
+    },
+    {
+      "id": 75,
+      "title": "EXPECTED GOALS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/statistics.ts",
+        "src/game/CameraRig.tsx"
+      ]
+    },
+    {
+      "id": 76,
+      "title": "REPLAY SYSTEM",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/statistics.ts",
+        "src/game/CameraRig.tsx"
+      ]
+    },
+    {
+      "id": 77,
+      "title": "HIGHLIGHT GENERATION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/statistics.ts",
+        "src/game/CameraRig.tsx"
+      ]
+    },
+    {
+      "id": 78,
+      "title": "ONLINE MATCH ARCHITECTURE",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/network.ts",
+        "src/core/controls.ts",
+        "src/human/network.ts"
+      ]
+    },
+    {
+      "id": 79,
+      "title": "LAG COMPENSATION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/network.ts",
+        "src/core/controls.ts",
+        "src/human/network.ts"
+      ]
+    },
+    {
+      "id": 80,
+      "title": "MATCH RECONNECTION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/network.ts",
+        "src/core/controls.ts",
+        "src/human/network.ts"
+      ]
+    },
+    {
+      "id": 81,
+      "title": "ANTI-CHEAT",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/network.ts",
+        "src/core/controls.ts",
+        "src/human/network.ts"
+      ]
+    },
+    {
+      "id": 82,
+      "title": "CROSS-PLATFORM FAIRNESS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/network.ts",
+        "src/core/controls.ts",
+        "src/human/network.ts"
+      ]
+    },
+    {
+      "id": 83,
+      "title": "MOBILE GAMEPLAY ADAPTATION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/network.ts",
+        "src/core/controls.ts",
+        "src/human/network.ts"
+      ]
+    },
+    {
+      "id": 84,
+      "title": "PERFORMANCE TARGETS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/performance.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 85,
+      "title": "SIMULATION UPDATE RATES",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/performance.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 86,
+      "title": "AI PERFORMANCE OPTIMIZATION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/performance.ts",
+        "src/core/engine.ts"
+      ]
+    },
+    {
+      "id": 87,
+      "title": "TRAINING MODE SUPPORT",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/debug.ts",
+        "src/core/qa.ts",
+        "scripts/core-validate.mjs"
+      ]
+    },
+    {
+      "id": 88,
+      "title": "DEVELOPER DEBUG TOOLS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/debug.ts",
+        "src/core/qa.ts",
+        "scripts/core-validate.mjs"
+      ]
+    },
+    {
+      "id": 89,
+      "title": "TELEMETRY AND ANALYTICS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "src/core/debug.ts",
+        "src/core/qa.ts",
+        "scripts/core-validate.mjs"
+      ]
+    },
+    {
+      "id": 90,
+      "title": "QUALITY ASSURANCE SCENARIOS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "docs/core/QA_PLAN.md",
+        "src/core/qa.ts"
+      ]
+    },
+    {
+      "id": 91,
+      "title": "FOOTBALL AUTHENTICITY VALIDATION",
+      "status": "runtime-integrated",
+      "implementation": [
+        "docs/core/QA_PLAN.md",
+        "src/core/qa.ts"
+      ]
+    },
+    {
+      "id": 92,
+      "title": "UNACCEPTABLE GAMEPLAY RESULTS",
+      "status": "runtime-integrated",
+      "implementation": [
+        "docs/core/QA_PLAN.md",
+        "src/core/qa.ts"
+      ]
+    },
+    {
+      "id": 93,
+      "title": "RECOMMENDED UNREAL ENGINE 5 ARCHITECTURE",
+      "status": "platform-adapted",
+      "implementation": [
+        "docs/core/ARCHITECTURE.md",
+        "src/core/index.ts"
+      ]
+    },
+    {
+      "id": 94,
+      "title": "DEVELOPMENT ROADMAP",
+      "status": "roadmap-enforced",
+      "implementation": [
+        "docs/core/IMPLEMENTATION_MATRIX.md"
+      ]
+    },
+    {
+      "id": 95,
+      "title": "ACCEPTANCE CRITERIA",
+      "status": "acceptance-gated",
+      "implementation": [
+        "src/core/qa.ts",
+        "scripts/core-validate.mjs"
+      ]
+    }
+  ]
+}

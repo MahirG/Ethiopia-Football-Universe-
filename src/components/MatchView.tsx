@@ -59,6 +59,7 @@ const INITIAL_TELEMETRY: MatchTelemetry = {
   ballSpeed: 0,
   controlledDistance: 0,
   stamina: 100,
+  core: null,
 }
 
 const INITIAL_HUMAN_TELEMETRY: HumanTelemetry = {
@@ -482,6 +483,7 @@ export function MatchView() {
           replayToken={replayToken}
           replayActive={replayActive}
           matchProgress={matchProgress}
+          matchMinute={score.time}
           presentationPhase={presentationPhase}
           celebrationTeam={celebrationTeam}
           cameraShake={cameraShake}
@@ -533,6 +535,10 @@ export function MatchView() {
               <div><small>Organic mistakes</small><b>{humanTelemetry.mistakes}</b></div>
               <div><small>GK reaction</small><b>{humanTelemetry.goalkeeperReactionMs || '—'} ms</b></div>
               <div><small>Max player speed</small><b>{(humanTelemetry.maxPlayerSpeed * 3.6).toFixed(1)} km/h</b></div>
+              <div><small>Match engine</small><b>{telemetry.core?.phase ?? 'initializing'}</b></div>
+              <div><small>Possession model</small><b>{telemetry.core?.possession.state ?? 'free'}</b></div>
+              <div><small>Added time</small><b>+{telemetry.core?.addedTime ?? 0}</b></div>
+              <div><small>Authority seq.</small><b>{telemetry.core?.authoritativeSequence ?? 0}</b></div>
             </div>
             <div className="human-decision-grid">
               {Object.entries(humanTelemetry.activeDecisions).filter(([, count]) => count > 0).map(([action, count]) => <span key={action}><b>{count}</b>{action}</span>)}
