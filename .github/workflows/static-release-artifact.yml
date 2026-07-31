@@ -1,4 +1,4 @@
-name: Verify public living world release
+name: Diagnose GitHub Pages deployment
 
 on:
   pull_request:
@@ -7,21 +7,50 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  verify-pages-release:
+  diagnose-pages:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify GitHub Pages release marker and app root
+      - name: Read Pages workflow state
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --retry 24 --retry-delay 10 --retry-all-errors \
-            https://mahirg.github.io/Ethiopia-Football-Universe-/deployment.json \
-            --output /tmp/pages-deployment.json
-          cat /tmp/pages-deployment.json
-          grep -q 'ed7a861983cb60b3f82c2ac9e3d865b3bc9050c0' /tmp/pages-deployment.json
-          curl --fail --location --retry 8 --retry-delay 5 --retry-all-errors \
-            https://mahirg.github.io/Ethiopia-Football-Universe-/ \
-            --output /tmp/pages-index.html
-          grep -q '<div id="root"></div>' /tmp/pages-index.html
+          gh api 'repos/MahirG/Ethiopia-Football-Universe-/actions/workflows/pages.yml/runs?branch=main&per_page=5' > /tmp/pages-runs.json
+          python3 - <<'PY'
+          import json
+          data=json.load(open('/tmp/pages-runs.json'))
+          for run in data.get('workflow_runs', []):
+              print(json.dumps({
+                  'id': run['id'],
+                  'status': run['status'],
+                  'conclusion': run['conclusion'],
+                  'head_sha': run['head_sha'],
+                  'event': run['event'],
+                  'url': run['html_url'],
+              }))
+          if data.get('workflow_runs'):
+              print(f"LATEST_RUN_ID={data['workflow_runs'][0]['id']}")
+          PY
+          RUN_ID=$(python3 - <<'PY'
+          import json
+          data=json.load(open('/tmp/pages-runs.json'))
+          print(data['workflow_runs'][0]['id'])
+          PY
+          )
+          gh api "repos/MahirG/Ethiopia-Football-Universe-/actions/runs/$RUN_ID/jobs" > /tmp/pages-jobs.json
+          python3 - <<'PY'
+          import json
+          data=json.load(open('/tmp/pages-jobs.json'))
+          for job in data.get('jobs', []):
+              print(json.dumps({
+                  'id': job['id'],
+                  'name': job['name'],
+                  'status': job['status'],
+                  'conclusion': job['conclusion'],
+                  'steps': [{s['name']: s['conclusion']} for s in job.get('steps', [])],
+              }))
+          PY
