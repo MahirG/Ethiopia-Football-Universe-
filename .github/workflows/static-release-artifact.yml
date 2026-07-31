@@ -1,4 +1,4 @@
-name: Recover successful deployment URL
+name: Verify successful living world deployment
 
 on:
   pull_request:
@@ -7,40 +7,20 @@ on:
 
 permissions:
   contents: read
-  deployments: read
 
 jobs:
-  recover-deployment:
+  verify-deployment:
     runs-on: ubuntu-latest
     steps:
-      - name: Read deployment records for living world release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Verify deployment root and release marker
         shell: bash
         run: |
           set -euo pipefail
-          gh api 'repos/MahirG/Ethiopia-Football-Universe-/deployments?sha=ed7a861983cb60b3f82c2ac9e3d865b3bc9050c0&per_page=100' > /tmp/deployments.json
-          python3 - <<'PY'
-          import json
-          deployments=json.load(open('/tmp/deployments.json'))
-          print(f'DEPLOYMENT_COUNT={len(deployments)}')
-          for deployment in deployments:
-              print(json.dumps({
-                  'id': deployment['id'],
-                  'environment': deployment.get('environment'),
-                  'description': deployment.get('description'),
-                  'task': deployment.get('task'),
-                  'created_at': deployment.get('created_at'),
-                  'statuses_url': deployment.get('statuses_url'),
-                  'payload': deployment.get('payload'),
-              }))
-          PY
-          python3 - <<'PY' > /tmp/deployment-ids.txt
-          import json
-          for deployment in json.load(open('/tmp/deployments.json')):
-              print(deployment['id'])
-          PY
-          while read -r DEPLOYMENT_ID; do
-            echo "--- deployment $DEPLOYMENT_ID statuses ---"
-            gh api "repos/MahirG/Ethiopia-Football-Universe-/deployments/$DEPLOYMENT_ID/statuses?per_page=100" || true
-          done < /tmp/deployment-ids.txt
+          BASE='https://ethiopia-football-universe-bidwmeomd-gulitshop.vercel.app'
+          curl --silent --show-error --location --output /tmp/index.html --write-out 'ROOT_STATUS=%{http_code}\n' "$BASE/"
+          head -c 500 /tmp/index.html
+          echo
+          curl --silent --show-error --location --output /tmp/deployment.json --write-out 'MARKER_STATUS=%{http_code}\n' "$BASE/deployment.json"
+          cat /tmp/deployment.json
+          grep -q '<div id="root"></div>' /tmp/index.html
+          grep -q 'ed7a861983cb60b3f82c2ac9e3d865b3bc9050c0' /tmp/deployment.json
