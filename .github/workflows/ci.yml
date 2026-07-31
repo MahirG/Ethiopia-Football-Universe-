@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   apply-core-mainline:
-    if: github.ref == 'refs/heads/agent/aaa-core-match-engine-mainline'
+    if: github.ref == 'refs/heads/agent/aaa-core-match-engine-mainline' || github.head_ref == 'agent/aaa-core-match-engine-mainline'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
