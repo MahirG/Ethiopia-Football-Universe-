@@ -6,6 +6,8 @@ import { createEmotionalState, createPhysicalState } from './state'
 import { createRelationshipMap } from './relationships'
 import type { HumanAction, HumanTelemetry, MatchWorldState, PlayerProfile, PlayerRelationship, PlayerRuntimeState } from './types'
 
+let activeHumanWorld: HumanWorldBundle | null = null
+
 export interface HumanWorldBundle {
   world: MatchWorldState
   profiles: Map<string, PlayerProfile>
@@ -54,7 +56,7 @@ export function createHumanWorld(weather: Weather, weatherIntensity: number): Hu
   const actions: HumanAction[] = ['hold', 'support', 'press', 'mark', 'recover', 'dribble', 'pass', 'shoot', 'clear', 'tackle', 'intercept', 'goalkeeper-set', 'goalkeeper-dive', 'goalkeeper-claim']
   for (const action of actions) actionCounts[action] = 0
 
-  return {
+  const bundle: HumanWorldBundle = {
     profiles,
     relationships: createRelationshipMap(profiles.values()),
     world: {
@@ -79,6 +81,12 @@ export function createHumanWorld(weather: Weather, weatherIntensity: number): Hu
       maxPlayerSpeed: 0,
     },
   }
+  activeHumanWorld = bundle
+  return bundle
+}
+
+export function getActiveHumanWorld() {
+  return activeHumanWorld
 }
 
 export function findRuntime(bundle: HumanWorldBundle, team: TeamSide, index: number) {
