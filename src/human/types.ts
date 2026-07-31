@@ -1,5 +1,6 @@
 import type * as THREE from 'three'
 import type { TeamSide, Weather } from '../game/types'
+export type { TeamSide, Weather }
 
 export type PlayerRole = 'goalkeeper' | 'fullback' | 'centre-back' | 'midfielder' | 'winger' | 'striker'
 export type PreferredFoot = 'left' | 'right'
