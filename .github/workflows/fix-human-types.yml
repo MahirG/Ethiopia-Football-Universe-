@@ -1,0 +1,34 @@
+name: Fix human public types
+
+on:
+  push:
+    branches:
+      - agent/complete-human-player-simulation
+    paths:
+      - '.github/workflows/fix-human-types.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/complete-human-player-simulation
+          fetch-depth: 0
+      - name: Export shared game types
+        shell: bash
+        run: |
+          sed -i "/import type { TeamSide, Weather } from '..\/game\/types'/a export type { TeamSide, Weather }" src/human/types.ts
+          rm -f .github/workflows/fix-human-types.yml
+      - name: Commit type boundary correction
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Export human simulation shared game types"
+          git push origin HEAD:agent/complete-human-player-simulation
