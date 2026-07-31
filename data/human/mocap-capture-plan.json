@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "status": "capture-required",
+  "sourceStandard": { "bodyFps": 120, "faceFps": 60, "timecode": "genlocked", "fullIntensity": true },
+  "performers": ["goalkeeper", "centre-back", "fullback", "midfielder", "winger", "striker", "left-footed", "right-footed", "fresh", "fatigued"],
+  "sessions": [
+    "standing-walking-jogging-running-sprinting",
+    "curved-runs-backpedal-jockey-strafe-crossover",
+    "acceleration-deceleration-plant-turn-recovery",
+    "first-touch-correct-imperfect-under-pressure",
+    "passing-all-angles-and-feet",
+    "shooting-volley-header-and-off-balance",
+    "dribbling-skills-protection-and-miscontrols",
+    "standing-sliding-recovery-and-last-man-tackles",
+    "aerial-duels-collisions-falls-and-get-ups",
+    "goalkeeper-set-dive-catch-parry-punch-smother-distribution",
+    "communication-referee-reactions-emotions-celebrations",
+    "facial-performance-synchronized-with-body"
+  ],
+  "legal": { "performerReleaseRequired": true, "commercialUseRequired": true, "biometricConsentRequired": true }
+}

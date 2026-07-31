@@ -1,10 +1,21 @@
-import { useMemo, useRef, type RefObject } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import { HALF_LENGTH, HALF_WIDTH, PLAYER_HEIGHT } from './config'
-import type { Difficulty, MatchAction, PresentationPhase, QualityLevel, TeamSide } from './types'
+import type { Difficulty, MatchAction, PresentationPhase, QualityLevel, TeamSide, Weather } from './types'
 import type { KeyboardState } from './useKeyboard'
+import type { AudioEventContext, FootballAudioEvent } from '../audio/types'
+import { HumanPlayerVisual } from '../human/HumanPlayerVisual'
+import { calculateBallContact, estimateFirstTouchQuality } from '../human/ballContact'
+import { solveLocomotion } from '../human/biomechanics'
+import { chooseDecision, perceiveWorld } from '../human/decisionAI'
+import { evaluateInjury, registerMajorEvent, updateEmotion, updatePhysicalState } from '../human/state'
+import { assessTackle, refereeReaction } from '../human/officiating'
+import { updateRelationshipAfterEvent } from '../human/relationships'
+import { findRuntime, type HumanWorldBundle } from '../human/world'
+import type { DecisionResult, FootballTechnique, HumanAction, PreferredFoot, VisualMotionState } from '../human/types'
+import { defaultTechnique } from '../human/techniques'
 
 interface PlayerAvatarProps {
   index: number
@@ -22,125 +33,38 @@ interface PlayerAvatarProps {
   matchProgress: number
   presentationPhase: PresentationPhase
   celebrationTeam: TeamSide | null
+  weather: Weather
+  weatherIntensity: number
+  scoreHome: number
+  scoreAway: number
+  humanWorld: HumanWorldBundle
   onEvent: (message: string) => void
   onAction: (action: MatchAction, team: TeamSide) => void
+  onSoundEvent: (event: FootballAudioEvent, context?: Omit<AudioEventContext, 'event'>) => void
 }
 
-const SKIN_TONES = ['#4d2a20', '#603526', '#75432e', '#8d5a3e', '#a96f50', '#bd8060']
-const HAIR_TONES = ['#101210', '#1c1814', '#29211b', '#382a21']
+interface PendingContact {
+  action: Extract<HumanAction, 'pass' | 'shoot' | 'clear' | 'tackle'>
+  target: THREE.Vector3
+  executeAt: number
+  technique: FootballTechnique
+}
 
-function createProfile(index: number, team: TeamSide) {
-  const seed = index + (team === 'away' ? 17 : 0)
-  return {
-    skin: SKIN_TONES[seed % SKIN_TONES.length],
-    hair: HAIR_TONES[(seed * 3) % HAIR_TONES.length],
-    height: 0.96 + (seed % 5) * 0.018,
-    width: 0.92 + ((seed * 5) % 4) * 0.045,
-    faceWidth: 0.93 + ((seed * 7) % 4) * 0.03,
-    curls: seed % 3 === 2,
-    beard: seed % 4 === 1,
+function attackDirection(team: TeamSide) {
+  return team === 'home' ? 1 : -1
+}
+
+function nearestOpponent(runtimeId: string, team: TeamSide, world: HumanWorldBundle) {
+  const runtime = world.world.players.find((player) => player.id === runtimeId)
+  if (!runtime) return null
+  let nearest = null as (typeof world.world.players)[number] | null
+  let distance = Number.POSITIVE_INFINITY
+  for (const player of world.world.players) {
+    if (player.team === team || player.id === runtimeId) continue
+    const nextDistance = Math.hypot(player.position.x - runtime.position.x, player.position.z - runtime.position.z)
+    if (nextDistance < distance) { distance = nextDistance; nearest = player }
   }
-}
-
-function HumanLimb({ side, skin, kit, leg, upperRef, lowerRef }: {
-  side: -1 | 1
-  skin: string
-  kit: string
-  leg?: boolean
-  upperRef: RefObject<THREE.Group | null>
-  lowerRef: RefObject<THREE.Group | null>
-}) {
-  const upperLength = leg ? 0.37 : 0.27
-  const lowerLength = leg ? 0.39 : 0.29
-  const x = side * (leg ? 0.15 : 0.35)
-
-  return (
-    <group ref={upperRef} position={[x, leg ? -0.25 : 0.42, 0]}>
-      <mesh position={[0, -upperLength / 2, 0]} castShadow>
-        <capsuleGeometry args={[leg ? 0.11 : 0.095, upperLength, 6, 10]} />
-        <meshPhysicalMaterial color={kit} roughness={0.62} sheen={0.24} />
-      </mesh>
-      <mesh position={[0, -upperLength, 0]} castShadow>
-        <sphereGeometry args={[leg ? 0.105 : 0.085, 12, 10]} />
-        <meshStandardMaterial color={leg ? kit : skin} roughness={0.62} />
-      </mesh>
-      <group ref={lowerRef} position={[0, -upperLength, 0]}>
-        <mesh position={[0, -lowerLength / 2, 0]} castShadow>
-          <capsuleGeometry args={[leg ? 0.085 : 0.075, lowerLength, 6, 10]} />
-          <meshPhysicalMaterial color={leg ? '#f4f1e8' : skin} roughness={0.57} clearcoat={0.04} />
-        </mesh>
-        {leg ? (
-          <mesh position={[0, -lowerLength - 0.05, 0.09]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 1.5, 0.72]} castShadow>
-            <capsuleGeometry args={[0.095, 0.24, 5, 10]} />
-            <meshPhysicalMaterial color="#111514" roughness={0.4} clearcoat={0.22} />
-          </mesh>
-        ) : (
-          <mesh position={[0, -lowerLength - 0.055, 0.01]} scale={[0.82, 1.08, 0.68]} castShadow>
-            <sphereGeometry args={[0.095, 12, 10]} />
-            <meshPhysicalMaterial color={skin} roughness={0.54} clearcoat={0.05} />
-          </mesh>
-        )}
-      </group>
-    </group>
-  )
-}
-
-function HumanHead({ skin, hair, faceWidth, curls, beard, quality, headRef }: {
-  skin: string
-  hair: string
-  faceWidth: number
-  curls: boolean
-  beard: boolean
-  quality: QualityLevel
-  headRef: RefObject<THREE.Group | null>
-}) {
-  const segments = quality === 'performance' ? 14 : 24
-
-  return (
-    <group ref={headRef} position={[0, 0.78, 0]}>
-      <mesh castShadow scale={[faceWidth, 1.04, 0.92]}>
-        <sphereGeometry args={[0.205, segments, Math.max(10, segments - 4)]} />
-        <meshPhysicalMaterial color={skin} roughness={0.5} clearcoat={0.08} />
-      </mesh>
-      <mesh position={[0, -0.13, 0.015]} scale={[faceWidth * 0.94, 0.62, 0.82]} castShadow>
-        <sphereGeometry args={[0.19, 16, 12]} />
-        <meshStandardMaterial color={skin} roughness={0.55} />
-      </mesh>
-      <mesh position={[0, 0.01, 0.198]} rotation={[Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[0.046, 0.13, 10]} />
-        <meshStandardMaterial color={skin} roughness={0.56} />
-      </mesh>
-      {[-0.072, 0.072].map((x) => (
-        <group key={x} position={[x, 0.065, 0.19]}>
-          <mesh scale={[1.1, 0.62, 0.5]}><sphereGeometry args={[0.03, 10, 8]} /><meshBasicMaterial color="#eee9df" /></mesh>
-          <mesh position={[0, 0, 0.019]}><sphereGeometry args={[0.014, 8, 8]} /><meshPhysicalMaterial color="#35251e" roughness={0.3} clearcoat={0.5} /></mesh>
-        </group>
-      ))}
-      <mesh position={[0, -0.095, 0.19]} scale={[1.2, 0.45, 0.55]}>
-        <sphereGeometry args={[0.064, 12, 8]} />
-        <meshStandardMaterial color="#512c25" roughness={0.74} />
-      </mesh>
-      {beard && (
-        <mesh position={[0, -0.155, 0.12]} scale={[faceWidth, 0.64, 0.82]}>
-          <sphereGeometry args={[0.19, 16, 10, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5]} />
-          <meshStandardMaterial color={hair} roughness={0.96} transparent opacity={0.48} />
-        </mesh>
-      )}
-      <mesh position={[0, 0.135, -0.015]} castShadow>
-        <sphereGeometry args={[0.205, quality === 'performance' ? 12 : 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
-        <meshStandardMaterial color={hair} roughness={0.96} />
-      </mesh>
-      {curls && quality !== 'performance' && Array.from({ length: 8 }, (_, index) => {
-        const angle = (index / 8) * Math.PI * 2
-        return (
-          <mesh key={index} position={[Math.cos(angle) * 0.13, 0.19 + (index % 2) * 0.035, Math.sin(angle) * 0.1]}>
-            <sphereGeometry args={[0.055, 8, 7]} />
-            <meshStandardMaterial color={hair} roughness={0.98} />
-          </mesh>
-        )
-      })}
-    </group>
-  )
+  return nearest ? { player: nearest, distance } : null
 }
 
 export function PlayerAvatar({
@@ -159,164 +83,394 @@ export function PlayerAvatar({
   matchProgress,
   presentationPhase,
   celebrationTeam,
+  weather,
+  weatherIntensity,
+  scoreHome,
+  scoreAway,
+  humanWorld,
   onEvent,
   onAction,
+  onSoundEvent,
 }: PlayerAvatarProps) {
   const bodyRef = useRef<RapierRigidBody>(null)
-  const rootRef = useRef<THREE.Group>(null)
-  const torsoRef = useRef<THREE.Group>(null)
-  const headRef = useRef<THREE.Group>(null)
-  const leftArm = useRef<THREE.Group>(null)
-  const rightArm = useRef<THREE.Group>(null)
-  const leftForearm = useRef<THREE.Group>(null)
-  const rightForearm = useRef<THREE.Group>(null)
-  const leftLeg = useRef<THREE.Group>(null)
-  const rightLeg = useRef<THREE.Group>(null)
-  const leftCalf = useRef<THREE.Group>(null)
-  const rightCalf = useRef<THREE.Group>(null)
-  const velocity = useRef(new THREE.Vector3())
-  const facing = useRef(team === 'home' ? 0 : Math.PI)
-  const cooldown = useRef(0)
-  const fatigue = useRef(0)
+  const profile = humanWorld.profiles.get(`${team}-${index}`)
+  const runtime = findRuntime(humanWorld, team, index)
+  if (!profile || !runtime) throw new Error(`Missing human simulation profile for ${team}-${index}`)
 
-  const profile = useMemo(() => createProfile(index, team), [index, team])
   const anchor = useMemo(() => new THREE.Vector3(...position), [position])
-  const target = useMemo(() => new THREE.Vector3(), [])
-  const direction = useMemo(() => new THREE.Vector3(), [])
-  const goalkeeper = index === 0
-  const kit = goalkeeper ? secondaryColor : color
+  const desiredVelocity = useMemo(() => new THREE.Vector3(), [])
+  const targetDirection = useMemo(() => new THREE.Vector3(), [])
+  const previousVelocity = useMemo(() => new THREE.Vector3(), [])
+  const ballPosition = useMemo(() => new THREE.Vector3(), [])
+  const ballVelocity = useMemo(() => new THREE.Vector3(), [])
+  const observedBall = useMemo(() => new THREE.Vector3(), [])
+  const observedVelocity = useMemo(() => new THREE.Vector3(), [])
+  const decision = useRef<DecisionResult>({ action: profile.role === 'goalkeeper' ? 'goalkeeper-set' : 'hold', target: anchor.clone(), utility: 0 })
+  const decisionCooldown = useRef(0.1 + index * 0.013)
+  const contactCooldown = useRef(0)
+  const dribbleCooldown = useRef(0.2)
+  const firstTouchCooldown = useRef(0)
+  const collisionCooldown = useRef(0)
+  const stepCooldown = useRef(0.18 + index * 0.014)
+  const voiceCooldown = useRef(5 + index * 0.53)
+  const keeperObservationCooldown = useRef(0)
+  const pendingContact = useRef<PendingContact | null>(null)
+  const contactSequence = useRef(index * 101 + (team === 'away' ? 4000 : 0))
+  const previousBallDistance = useRef(99)
+  const celebrationSeen = useRef(false)
+  const motion = useRef<VisualMotionState>({
+    gaitPhase: index * 0.42,
+    gaitRate: 0,
+    strideLength: 0.8,
+    lean: 0,
+    braking: 0,
+    slip: 0,
+    plantBias: 0.55,
+    kick: 0,
+    tackle: 0,
+    stumble: 0,
+    goalkeeperDive: 0,
+    jump: 0,
+  })
+
+  const performContact = (
+    action: Extract<HumanAction, 'dribble' | 'pass' | 'shoot' | 'clear' | 'tackle' | 'intercept' | 'goalkeeper-claim'>,
+    target: THREE.Vector3,
+    pressure: number,
+    contactSide: PreferredFoot,
+    technique: FootballTechnique = defaultTechnique(action, ballPosition.y, runtime.velocity.length() > 6.5),
+  ) => {
+    const ball = ballRef.current
+    if (!ball || contactCooldown.current > 0) return false
+    const translation = ball.translation()
+    const velocity = ball.linvel()
+    ballPosition.set(translation.x, translation.y, translation.z)
+    ballVelocity.set(velocity.x, velocity.y, velocity.z)
+    contactSequence.current += 1
+    const result = calculateBallContact({
+      action,
+      player: profile,
+      runtime,
+      ballPosition,
+      ballVelocity,
+      target,
+      pressure,
+      weather,
+      weatherIntensity,
+      matchProgress,
+      contactSide,
+      seed: contactSequence.current + Math.floor(matchProgress * 1000),
+      technique,
+    })
+    const reach = action === 'goalkeeper-claim' ? 1.65 : action === 'tackle' || action === 'intercept' ? 1.15 : 0.94
+    if (result.contactPoint.distanceTo(ballPosition) > reach && runtime.position.distanceTo(ballPosition) > reach + 0.35) return false
+
+    if (action === 'goalkeeper-claim') {
+      const catchQuality = profile.ability.goalkeeper * runtime.physical.balance * (1 - runtime.physical.fatigue * 0.2)
+      if (catchQuality > 0.72 && ballVelocity.length() < 15) {
+        ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
+        ball.applyImpulse({ x: -attackDirection(team) * 6.8, y: 1.8, z: -ballPosition.z * 0.16 }, true)
+        onSoundEvent('goalkeeper-catch', { team, position: [ballPosition.x, ballPosition.y, ballPosition.z], force: result.soundForce })
+      } else {
+        ball.applyImpulse({ x: result.impulse.x, y: Math.max(1.2, result.impulse.y), z: result.impulse.z }, true)
+        onSoundEvent('goalkeeper-parry', { team, position: [ballPosition.x, ballPosition.y, ballPosition.z], force: result.soundForce })
+      }
+      onAction('save', team)
+      humanWorld.telemetry.goalkeeperReactionMs = Math.round(THREE.MathUtils.lerp(340, 115, profile.ability.reactions * profile.ability.goalkeeper))
+    } else {
+      ball.applyImpulse({ x: result.impulse.x, y: result.impulse.y, z: result.impulse.z }, true)
+      ball.applyTorqueImpulse({ x: result.torque.x, y: result.torque.y, z: result.torque.z }, true)
+      const event: FootballAudioEvent = technique === 'header' ? 'header' : action === 'shoot' ? 'shot-taken' : action === 'pass' ? 'pass-completed' : action === 'tackle' || action === 'intercept' ? 'slide-tackle' : result.heavyTouch ? 'heavy-touch' : 'ball-kicked'
+      onSoundEvent(event, { team, position: [ballPosition.x, ballPosition.y, ballPosition.z], force: result.soundForce, speed: ballVelocity.length(), wetness: weather === 'rain' ? weatherIntensity : 0 })
+      if (action === 'shoot') onAction('shot', team)
+      if (action === 'pass') onAction('pass', team)
+      if (action === 'tackle' || action === 'intercept') {
+        const opponentInfo = nearestOpponent(runtime.id, team, humanWorld)
+        if (opponentInfo && opponentInfo.distance < 1.35) {
+          const opponentProfile = humanWorld.profiles.get(opponentInfo.player.id)
+          const opponentGoalX = team === 'home' ? HALF_LENGTH : -HALF_LENGTH
+          const lastDefender = Math.abs(opponentInfo.player.position.x - opponentGoalX) < 18
+          const assessment = assessTackle(runtime, profile, opponentInfo.player, ballPosition, result.soundForce, lastDefender)
+          opponentInfo.player.physical.balance = Math.max(0.18, opponentInfo.player.physical.balance - result.soundForce * 0.38)
+          if (assessment.foul) {
+            updateRelationshipAfterEvent(humanWorld.relationships, runtime.id, opponentInfo.player.id, 'foul')
+            onSoundEvent('foul-committed', { team, position: [ballPosition.x, ballPosition.y, ballPosition.z], force: assessment.severity, metadata: { reason: assessment.reason } })
+            if (assessment.card === 'yellow') onSoundEvent('yellow-card', { team, force: assessment.severity })
+            if (assessment.card === 'red') onSoundEvent('red-card', { team, force: assessment.severity })
+            onEvent(`${assessment.card === 'none' ? 'Foul' : `${assessment.card.toUpperCase()} card`} · ${assessment.reason.replace('-', ' ')}`)
+            runtime.emotion.frustration = Math.min(1, runtime.emotion.frustration + assessment.severity * 0.16)
+            const protest = refereeReaction(profile, runtime, true)
+            if (protest > 0.42) onSoundEvent('player-call', { team, position: [runtime.position.x, 1.4, runtime.position.z], force: protest, metadata: { intent: 'referee-protest' } })
+          }
+        }
+      }
+    }
+
+    runtime.onBall = true
+    runtime.action = action
+    runtime.actionStartedAt = performance.now() / 1000
+    motion.current.kick = action === 'shoot' || action === 'pass' || action === 'clear' ? 1 : motion.current.kick
+    motion.current.tackle = action === 'tackle' || action === 'intercept' ? 1 : motion.current.tackle
+    humanWorld.telemetry.ballContacts += 1
+    if (result.heavyTouch) humanWorld.telemetry.mistakes += 1
+    contactCooldown.current = action === 'dribble' ? 0.18 : action === 'goalkeeper-claim' ? 0.9 : 0.42
+    return true
+  }
 
   useFrame((state, delta) => {
     const body = bodyRef.current
-    if (!body) return
-
-    const current = body.translation()
     const ball = ballRef.current
-    const ballTranslation = ball?.translation()
-    cooldown.current = Math.max(0, cooldown.current - delta)
+    if (!body || !ball) return
+    const now = state.clock.elapsedTime
+    const current = body.translation()
+    const translation = ball.translation()
+    const linear = ball.linvel()
+    ballPosition.set(translation.x, translation.y, translation.z)
+    ballVelocity.set(linear.x, linear.y, linear.z)
+    runtime.position.set(current.x, current.y, current.z)
+    runtime.onBall = false
 
-    if (!running) {
-      velocity.current.multiplyScalar(Math.pow(0.08, delta))
-    } else if (controlled) {
-      const held = keyboard.current.held
-      let x = Number(held.has('w') || held.has('arrowup')) - Number(held.has('s') || held.has('arrowdown'))
-      let z = Number(held.has('d') || held.has('arrowright')) - Number(held.has('a') || held.has('arrowleft'))
-      const inputLength = Math.hypot(x, z)
-      const sprinting = held.has('shift') && inputLength > 0
-      const baselineFatigue = matchProgress * 0.18
-      fatigue.current = THREE.MathUtils.clamp(fatigue.current + delta * (sprinting ? 0.04 : -0.018), baselineFatigue, 1)
+    contactCooldown.current = Math.max(0, contactCooldown.current - delta)
+    dribbleCooldown.current = Math.max(0, dribbleCooldown.current - delta)
+    firstTouchCooldown.current = Math.max(0, firstTouchCooldown.current - delta)
+    collisionCooldown.current = Math.max(0, collisionCooldown.current - delta)
+    stepCooldown.current -= delta
+    voiceCooldown.current -= delta
+    decisionCooldown.current -= delta
+    keeperObservationCooldown.current -= delta
 
-      if (inputLength > 0) {
-        x /= inputLength
-        z /= inputLength
-        facing.current = Math.atan2(z, x)
-      }
+    const perception = perceiveWorld(runtime, humanWorld.world)
+    runtime.nearestOpponentDistance = perception.nearestOpponentDistance
+    runtime.nearestTeammateDistance = perception.nearestTeammateDistance
+    runtime.offsideRisk = perception.offsideRisk
+    runtime.emotion.pressure = perception.pressure
+    const winning = team === 'home' ? scoreHome > scoreAway : scoreAway > scoreHome
+    const losing = team === 'home' ? scoreHome < scoreAway : scoreAway < scoreHome
 
-      const movementSpeed = (sprinting ? 9.2 : 6.25) * (1 - fatigue.current * 0.2)
-      velocity.current.x = THREE.MathUtils.damp(velocity.current.x, x * movementSpeed, 11, delta)
-      velocity.current.z = THREE.MathUtils.damp(velocity.current.z, z * movementSpeed, 11, delta)
+    if (profile.role === 'goalkeeper' && keeperObservationCooldown.current <= 0) {
+      observedBall.copy(ballPosition)
+      observedVelocity.copy(ballVelocity)
+      keeperObservationCooldown.current = THREE.MathUtils.lerp(0.34, 0.1, profile.ability.reactions * profile.ability.goalkeeper) + runtime.physical.fatigue * 0.1
+    }
 
-      if (ball && ballTranslation) {
-        const distanceToBall = Math.hypot(ballTranslation.x - current.x, ballTranslation.z - current.z)
-        const shooting = keyboard.current.pressed.has(' ')
-        const passing = keyboard.current.pressed.has('e')
-        if ((shooting || passing) && distanceToBall < 1.55 && cooldown.current === 0) {
-          direction.set(Math.cos(facing.current), shooting ? 0.2 : 0.065, Math.sin(facing.current)).normalize()
-          const force = shooting ? 8.9 : 5.15
-          ball.applyImpulse({ x: direction.x * force, y: direction.y * force, z: direction.z * force }, true)
-          ball.applyTorqueImpulse({ x: -direction.z * 0.08, y: held.has('a') ? -0.24 : held.has('d') ? 0.24 : 0, z: direction.x * 0.08 }, true)
-          cooldown.current = 0.52
-          onAction(shooting ? 'shot' : 'pass', team)
-          onEvent(shooting ? 'Power shot · spin engaged' : 'Weighted pass released')
+    desiredVelocity.set(0, 0, 0)
+    if (running) {
+      if (controlled) {
+        const held = keyboard.current.held
+        let inputX = Number(held.has('w') || held.has('arrowup')) - Number(held.has('s') || held.has('arrowdown'))
+        let inputZ = Number(held.has('d') || held.has('arrowright')) - Number(held.has('a') || held.has('arrowleft'))
+        const inputLength = Math.hypot(inputX, inputZ)
+        if (inputLength > 0) { inputX /= inputLength; inputZ /= inputLength }
+        const sprinting = held.has('shift') && inputLength > 0
+        const requestedSpeed = sprinting ? 10 : inputLength > 0 ? 6.5 : 0
+        desiredVelocity.set(inputX * requestedSpeed, 0, inputZ * requestedSpeed)
+        runtime.hasBallIntent = perception.distanceToBall < 1.7
+
+        if (keyboard.current.pressed.has(' ') && !pendingContact.current) {
+          pendingContact.current = { action: 'shoot', target: new THREE.Vector3(attackDirection(team) * HALF_LENGTH, 0.75, THREE.MathUtils.clamp(-ballPosition.z * 0.08, -1.2, 1.2)), executeAt: now + 0.12, technique: held.has('alt') ? 'finesse-shot' : held.has('q') ? 'chip-shot' : held.has('shift') ? 'power-shot' : 'placed-shot' }
+          runtime.action = 'shoot'
+          runtime.actionStartedAt = now
+          motion.current.kick = 0.35
+        }
+        if (keyboard.current.pressed.has('e') && !pendingContact.current) {
+          const teammate = [...perception.teammates].sort((a, b) => {
+            const aValue = a.position.clone().sub(runtime.position).dot(new THREE.Vector3(attackDirection(team), 0, 0)) - a.position.distanceTo(runtime.position) * 0.15
+            const bValue = b.position.clone().sub(runtime.position).dot(new THREE.Vector3(attackDirection(team), 0, 0)) - b.position.distanceTo(runtime.position) * 0.15
+            return bValue - aValue
+          })[0]
+          pendingContact.current = { action: 'pass', target: teammate?.position.clone().add(teammate.velocity.clone().multiplyScalar(0.42)) ?? runtime.position.clone().add(new THREE.Vector3(attackDirection(team) * 12, 0, 0)), executeAt: now + 0.1, technique: held.has('q') ? 'lofted-pass' : held.has('shift') ? 'driven-pass' : held.has('alt') ? 'through-ball' : 'short-pass' }
+          runtime.action = 'pass'
+          runtime.actionStartedAt = now
+          motion.current.kick = 0.3
+        }
+        if (keyboard.current.pressed.has('f') && !pendingContact.current) {
+          pendingContact.current = { action: 'tackle', target: ballPosition.clone(), executeAt: now + 0.08, technique: held.has('shift') ? 'slide-tackle' : 'poke-tackle' }
+          runtime.action = 'tackle'
+          runtime.actionStartedAt = now
+          motion.current.tackle = 1
+        }
+        keyboard.current.pressed.delete(' ')
+        keyboard.current.pressed.delete('e')
+        keyboard.current.pressed.delete('f')
+
+        if (inputLength > 0 && perception.distanceToBall < 1.25 && dribbleCooldown.current === 0 && !pendingContact.current) {
+          const dribbleTarget = runtime.position.clone().add(desiredVelocity.clone().normalize().multiplyScalar(sprinting ? 4.4 : 2.1))
+          if (performContact('dribble', dribbleTarget, perception.pressure, profile.preferredFoot, sprinting ? 'sprint-dribble' : perception.pressure > 0.55 ? 'protective-touch' : 'close-dribble')) dribbleCooldown.current = THREE.MathUtils.lerp(0.42, 0.26, profile.ability.dribbling) / profile.movement.touchRhythm
+        }
+      } else {
+        if (decisionCooldown.current <= 0) {
+          const worldForDecision = profile.role === 'goalkeeper'
+            ? { ...humanWorld.world, ballPosition: observedBall, ballVelocity: observedVelocity }
+            : humanWorld.world
+          const next = chooseDecision(runtime, profile, worldForDecision, anchor, now, humanWorld.relationships)
+          if (next.action !== runtime.action) {
+            runtime.action = next.action
+            runtime.actionStartedAt = now
+          }
+          decision.current = next
+          decisionCooldown.current = THREE.MathUtils.lerp(0.62, 0.18, profile.ability.reactions) * (difficulty === 'Legendary' ? 0.72 : difficulty === 'Academy' ? 1.28 : 1)
+        }
+        const nextDecision = decision.current
+        targetDirection.copy(nextDecision.target).sub(runtime.position).setY(0)
+        const targetDistance = targetDirection.length()
+        if (targetDistance > 0.18) {
+          targetDirection.normalize()
+          const roleSpeed = nextDecision.action === 'press' || nextDecision.action === 'goalkeeper-dive' ? 8.6 : nextDecision.action === 'dribble' ? 5.8 : 4.8
+          desiredVelocity.copy(targetDirection).multiplyScalar(Math.min(roleSpeed, targetDistance * 1.4))
+        }
+        if (nextDecision.action === 'goalkeeper-dive') motion.current.goalkeeperDive = 1
+
+        if (['pass', 'shoot', 'clear'].includes(nextDecision.action) && perception.distanceToBall < 1.35 && !pendingContact.current) {
+          pendingContact.current = { action: nextDecision.action as PendingContact['action'], target: nextDecision.target.clone(), executeAt: now + THREE.MathUtils.lerp(0.2, 0.08, profile.ability.reactions), technique: defaultTechnique(nextDecision.action, ballPosition.y, runtime.velocity.length() > 6.5) }
+          motion.current.kick = 0.35
+        } else if (nextDecision.action === 'dribble' && perception.distanceToBall < 1.3 && dribbleCooldown.current === 0) {
+          if (performContact('dribble', nextDecision.target, perception.pressure, profile.preferredFoot)) dribbleCooldown.current = THREE.MathUtils.lerp(0.46, 0.25, profile.ability.dribbling) / profile.movement.touchRhythm
+        } else if (nextDecision.action === 'tackle' && perception.distanceToBall < 1.45 && contactCooldown.current === 0) {
+          performContact('tackle', ballPosition, perception.pressure, profile.preferredFoot)
+          motion.current.tackle = 1
+        } else if (nextDecision.action === 'goalkeeper-claim' && perception.distanceToBall < 1.85 && contactCooldown.current === 0) {
+          performContact('goalkeeper-claim', runtime.position.clone().add(new THREE.Vector3(-attackDirection(team) * 12, 1, 0)), perception.pressure, profile.preferredFoot)
         }
       }
-      keyboard.current.pressed.delete(' ')
-      keyboard.current.pressed.delete('e')
-    } else {
-      const ownGoalX = team === 'home' ? -HALF_LENGTH + 0.9 : HALF_LENGTH - 0.9
-      const attackDirection = team === 'home' ? 1 : -1
-      const ballVelocity = ball?.linvel()
-      const shotThreat = Boolean(goalkeeper && ballTranslation && ballVelocity && ((team === 'home' && ballVelocity.x < -1) || (team === 'away' && ballVelocity.x > 1)) && Math.abs(ballTranslation.x - ownGoalX) < 18)
+    }
 
-      if (goalkeeper) {
-        target.set(ownGoalX + attackDirection * 1.1, 0, THREE.MathUtils.clamp(shotThreat && ballTranslation ? ballTranslation.z : (ballTranslation?.z ?? 0) * 0.35, -3.1, 3.1))
-      } else if (ballTranslation && Math.hypot(ballTranslation.x - current.x, ballTranslation.z - current.z) < 8 + (difficulty === 'Legendary' ? 8 : 4)) {
-        target.set(ballTranslation.x, 0, ballTranslation.z)
-      } else {
-        target.copy(anchor)
+    if (pendingContact.current && now >= pendingContact.current.executeAt) {
+      const pending = pendingContact.current
+      const right = new THREE.Vector3(-Math.sin(runtime.facing), 0, Math.cos(runtime.facing))
+      const side = ballPosition.clone().sub(runtime.position).dot(right) < 0 ? 'left' : 'right'
+      const contactSide = side === profile.preferredFoot || profile.ability.weakFoot > 0.72 ? side : profile.preferredFoot
+      if (performContact(pending.action, pending.target, perception.pressure, contactSide, pending.technique)) {
+        onEvent(pending.action === 'shoot' ? 'Biomechanical strike · planted foot contact' : pending.action === 'pass' ? 'Weighted pass · body orientation applied' : pending.action === 'tackle' ? 'Physical tackle · contact resolved' : 'Clearance under pressure')
       }
+      pendingContact.current = null
+    }
 
-      direction.set(target.x - current.x, 0, target.z - current.z)
-      if (direction.lengthSq() > 0.05) {
-        direction.normalize()
-        const aiSpeed = shotThreat ? 7.4 : goalkeeper ? 2.4 : 2.1
-        velocity.current.x = THREE.MathUtils.damp(velocity.current.x, direction.x * aiSpeed, 6, delta)
-        velocity.current.z = THREE.MathUtils.damp(velocity.current.z, direction.z * aiSpeed, 6, delta)
-        facing.current = Math.atan2(velocity.current.z, velocity.current.x)
-      } else {
-        velocity.current.multiplyScalar(Math.pow(0.12, delta))
+    const ballDistance = runtime.position.distanceTo(ballPosition)
+    if (firstTouchCooldown.current === 0 && previousBallDistance.current > 1.5 && ballDistance < (ballPosition.y > 1.15 ? 1.65 : 1.22) && ballVelocity.length() > 2.2 && !pendingContact.current) {
+      if (ballPosition.y > 1.18 && ballPosition.y < profile.body.height + 0.28) {
+        const headerTarget = new THREE.Vector3(attackDirection(team) * HALF_LENGTH, 0.8, -ballPosition.z * 0.12)
+        if (performContact(profile.role === 'centre-back' ? 'clear' : 'pass', headerTarget, perception.pressure, profile.preferredFoot, 'header')) {
+          motion.current.jump = 1
+          firstTouchCooldown.current = 0.92
+          previousBallDistance.current = ballDistance
+          return
+        }
       }
+      const weatherDifficulty = weather === 'rain' ? weatherIntensity * 0.12 : 0
+      const touchQuality = estimateFirstTouchQuality(profile, runtime, ballVelocity.length(), ballPosition.y, perception.pressure, weatherDifficulty)
+      const cushion = THREE.MathUtils.lerp(0.22, 0.7, touchQuality)
+      const nextVelocity = ballVelocity.clone().multiplyScalar(-cushion * 0.12)
+      const forward = new THREE.Vector3(Math.cos(runtime.facing), 0.02, Math.sin(runtime.facing)).multiplyScalar(THREE.MathUtils.lerp(0.35, 1.15, 1 - touchQuality))
+      ball.applyImpulse({ x: nextVelocity.x + forward.x, y: nextVelocity.y + forward.y, z: nextVelocity.z + forward.z }, true)
+      const heavy = touchQuality < 0.52
+      onSoundEvent(heavy ? 'heavy-touch' : ballPosition.y > 1.2 ? 'header' : 'first-touch', { team, position: [ballPosition.x, ballPosition.y, ballPosition.z], force: 1 - touchQuality * 0.55 })
+      if (heavy) humanWorld.telemetry.mistakes += 1
+      firstTouchCooldown.current = 0.8
+    }
+    previousBallDistance.current = ballDistance
 
-      if (goalkeeper && ball && ballTranslation && Math.hypot(ballTranslation.x - current.x, ballTranslation.z - current.z) < 1.35 && cooldown.current === 0) {
-        ball.setLinvel({ x: 0, y: 0, z: 0 }, true)
-        ball.applyImpulse({ x: -attackDirection * 8.8, y: 2.25, z: -ballTranslation.z * 0.22 }, true)
-        cooldown.current = 1.1
-        onAction('save', team)
-        onEvent('Goalkeeper save · strong hands')
+    const acceleration = previousVelocity.distanceTo(runtime.velocity) / Math.max(delta, 0.001)
+    updatePhysicalState(runtime.physical, profile, runtime.velocity.length(), acceleration, delta, weather, weatherIntensity, matchProgress)
+    updateEmotion(runtime.emotion, profile, delta, perception.pressure, winning, losing)
+
+    const locomotion = solveLocomotion({
+      desiredVelocity,
+      currentVelocity: runtime.velocity,
+      facing: runtime.facing,
+      profile,
+      physical: runtime.physical,
+      weather,
+      weatherIntensity,
+      delta,
+    })
+    previousVelocity.copy(runtime.velocity)
+    runtime.velocity.copy(locomotion.velocity)
+    runtime.facing = locomotion.facing
+    runtime.desiredFacing = desiredVelocity.lengthSq() > 0.01 ? Math.atan2(desiredVelocity.z, desiredVelocity.x) : runtime.facing
+    motion.current.gaitRate = locomotion.gaitPhaseRate
+    motion.current.strideLength = locomotion.strideLength
+    motion.current.lean = locomotion.lean
+    motion.current.braking = locomotion.braking
+    motion.current.slip = locomotion.slip
+    motion.current.plantBias = locomotion.plantBias
+    if (locomotion.slip > 0.18) {
+      humanWorld.telemetry.footSlipEvents += 1
+      runtime.physical.balance = Math.max(0.35, runtime.physical.balance - locomotion.slip * 0.08)
+      motion.current.stumble = Math.max(motion.current.stumble, locomotion.slip)
+    }
+
+    const opponent = nearestOpponent(runtime.id, team, humanWorld)
+    if (opponent && opponent.distance < 0.68 && collisionCooldown.current === 0) {
+      const otherProfile = humanWorld.profiles.get(opponent.player.id)
+      const separation = runtime.position.clone().sub(opponent.player.position).setY(0)
+      if (separation.lengthSq() < 0.001) separation.set(Math.cos(index), 0, Math.sin(index))
+      separation.normalize()
+      const relativeVelocity = runtime.velocity.clone().sub(opponent.player.velocity)
+      const impact = THREE.MathUtils.clamp(relativeVelocity.length() / 9 + (otherProfile?.body.mass ?? 75) / 300, 0, 1)
+      const massRatio = (otherProfile?.body.mass ?? 75) / Math.max(55, profile.body.mass)
+      runtime.velocity.add(separation.multiplyScalar(impact * -1.1 * massRatio))
+      runtime.physical.balance = Math.max(0.2, runtime.physical.balance - impact * (1 - profile.ability.balance * 0.5))
+      motion.current.stumble = Math.max(motion.current.stumble, impact)
+      opponent.player.physical.balance = Math.max(0.2, opponent.player.physical.balance - impact * 0.36)
+      onSoundEvent('player-collision', { team, position: [current.x, current.y, current.z], force: impact })
+      const injury = evaluateInjury(runtime.physical, profile, impact, Math.abs(relativeVelocity.z) / 8, contactSequence.current + now)
+      if (injury !== 'none') {
+        runtime.emotion.pain = Math.max(runtime.emotion.pain, runtime.physical.injurySeverity)
+        registerMajorEvent(runtime.emotion, `injury:${injury}`, false, runtime.physical.injurySeverity)
+        onSoundEvent('player-pain', { team, position: [current.x, current.y, current.z], force: runtime.physical.injurySeverity })
+        onSoundEvent('injury', { team, position: [current.x, current.y, current.z], force: runtime.physical.injurySeverity })
+        onEvent(`${injury} concern · player testing the affected area`)
       }
+      collisionCooldown.current = 0.55
     }
 
-    const nextX = THREE.MathUtils.clamp(current.x + velocity.current.x * delta, -HALF_LENGTH + 0.5, HALF_LENGTH - 0.5)
-    const nextZ = THREE.MathUtils.clamp(current.z + velocity.current.z * delta, -HALF_WIDTH + 0.5, HALF_WIDTH - 0.5)
-    body.setNextKinematicTranslation({ x: nextX, y: PLAYER_HEIGHT / 2, z: nextZ })
-    if (controlled) controlledPosition.current.set(nextX, PLAYER_HEIGHT / 2, nextZ)
+    const nextX = THREE.MathUtils.clamp(current.x + runtime.velocity.x * delta, -HALF_LENGTH + 0.48, HALF_LENGTH - 0.48)
+    const nextZ = THREE.MathUtils.clamp(current.z + runtime.velocity.z * delta, -HALF_WIDTH + 0.48, HALF_WIDTH - 0.48)
+    body.setNextKinematicTranslation({ x: nextX, y: profile.body.height / 2, z: nextZ })
+    runtime.position.set(nextX, profile.body.height / 2, nextZ)
+    runtime.scanTarget.copy(perception.distanceToBall < 8 ? ballPosition : decision.current.target)
+    if (controlled) controlledPosition.current.copy(runtime.position)
 
-    const speed = velocity.current.length()
-    const stride = Math.sin(state.clock.elapsedTime * (speed > 6 ? 14 : 9) + index * 0.4) * Math.min(0.78, speed * 0.09)
-    const leftKnee = Math.max(0, -stride) * 0.7
-    const rightKnee = Math.max(0, stride) * 0.7
+    const speed = runtime.velocity.length()
+    if (running && speed > 1.7 && stepCooldown.current <= 0) {
+      onSoundEvent('footstep', { team, position: [nextX, 0, nextZ], force: Math.min(1, speed / 9), wetness: weather === 'rain' ? weatherIntensity : 0, metadata: { controlled, gait: speed > 7 ? 'sprint' : speed > 4 ? 'run' : 'jog' } })
+      stepCooldown.current = THREE.MathUtils.lerp(0.45, 0.24, Math.min(1, speed / 9)) / profile.movement.cadenceScale
+    }
+    if (running && voiceCooldown.current <= 0 && profile.role !== 'goalkeeper' && speed > 0.8 && Math.random() < 0.22 * profile.personality.leadership + perception.pressure * 0.08) {
+      onSoundEvent('player-call', { team, position: [nextX, 1.4, nextZ], force: THREE.MathUtils.clamp(0.3 + perception.pressure * 0.5, 0.3, 0.88), metadata: { urgency: perception.pressure, action: runtime.action } })
+      voiceCooldown.current = THREE.MathUtils.lerp(14, 6, profile.personality.leadership) + Math.random() * 8
+    }
 
-    if (rootRef.current) {
-      rootRef.current.rotation.y = -facing.current + Math.PI / 2
-      rootRef.current.position.y = Math.abs(stride) * 0.025
-    }
-    if (torsoRef.current) {
-      torsoRef.current.rotation.z = THREE.MathUtils.damp(torsoRef.current.rotation.z, -velocity.current.z * 0.015, 7, delta)
-      torsoRef.current.scale.y = 1 + Math.sin(state.clock.elapsedTime * 3) * 0.012
-    }
-    if (leftLeg.current) leftLeg.current.rotation.x = stride
-    if (rightLeg.current) rightLeg.current.rotation.x = -stride
-    if (leftCalf.current) leftCalf.current.rotation.x = leftKnee
-    if (rightCalf.current) rightCalf.current.rotation.x = rightKnee
-    if (leftArm.current) leftArm.current.rotation.x = -stride * 0.72
-    if (rightArm.current) rightArm.current.rotation.x = stride * 0.72
-    if (leftForearm.current) leftForearm.current.rotation.x = Math.abs(stride) * 0.2
-    if (rightForearm.current) rightForearm.current.rotation.x = Math.abs(stride) * 0.2
-    if (headRef.current && ballTranslation) {
-      headRef.current.rotation.y = THREE.MathUtils.damp(headRef.current.rotation.y, THREE.MathUtils.clamp(Math.atan2(ballTranslation.z - current.z, ballTranslation.x - current.x) - facing.current, -0.55, 0.55), 7, delta)
-    }
-    if (celebrationTeam === team && presentationPhase !== 'idle') {
-      if (leftArm.current) leftArm.current.rotation.x = -2.2
-      if (rightArm.current) rightArm.current.rotation.x = -2.2
-    }
+    if (celebrationTeam === team && !celebrationSeen.current) {
+      registerMajorEvent(runtime.emotion, 'goal', true, 0.8)
+      celebrationSeen.current = true
+    } else if (celebrationTeam !== team) celebrationSeen.current = false
   })
 
+  const colliderRadius = THREE.MathUtils.clamp(profile.body.shoulderWidth * 0.47, 0.2, 0.3)
+  const colliderHalfHeight = Math.max(0.42, (profile.body.height - colliderRadius * 2) / 2)
+
   return (
-    <RigidBody ref={bodyRef} type="kinematicPosition" colliders={false} position={position} enabledRotations={[false, false, false]}>
-      <CapsuleCollider args={[0.5, 0.27 * profile.width]} friction={0.82} />
-      <group ref={rootRef} scale={[profile.width, profile.height, 1]}>
-        <group ref={torsoRef}>
-          <mesh position={[0, 0.28, 0]} castShadow scale={[1.08, 1, 0.9]}><capsuleGeometry args={[0.255, 0.34, 7, 14]} /><meshPhysicalMaterial color={kit} roughness={0.58} sheen={0.38} /></mesh>
-          <mesh position={[0, -0.19, 0]} castShadow scale={[1.04, 0.68, 0.92]}><capsuleGeometry args={[0.25, 0.16, 6, 12]} /><meshPhysicalMaterial color={kit} roughness={0.64} sheen={0.25} /></mesh>
-          <mesh position={[0, 0.61, 0]}><cylinderGeometry args={[0.095, 0.11, 0.18, 14]} /><meshStandardMaterial color={profile.skin} roughness={0.55} /></mesh>
-        </group>
-        <HumanHead skin={profile.skin} hair={profile.hair} faceWidth={profile.faceWidth} curls={profile.curls} beard={profile.beard} quality={quality} headRef={headRef} />
-        <HumanLimb side={-1} skin={profile.skin} kit={kit} upperRef={leftArm} lowerRef={leftForearm} />
-        <HumanLimb side={1} skin={profile.skin} kit={kit} upperRef={rightArm} lowerRef={rightForearm} />
-        <HumanLimb side={-1} skin={profile.skin} kit={kit} leg upperRef={leftLeg} lowerRef={leftCalf} />
-        <HumanLimb side={1} skin={profile.skin} kit={kit} leg upperRef={rightLeg} lowerRef={rightCalf} />
-        {controlled && <group position={[0, 1.42, 0]}><mesh rotation={[0, 0, Math.PI]}><coneGeometry args={[0.2, 0.38, 3]} /><meshStandardMaterial color="#f2cc41" emissive="#d99d12" emissiveIntensity={0.9} /></mesh></group>}
-      </group>
+    <RigidBody
+      ref={bodyRef}
+      type="kinematicPosition"
+      colliders={false}
+      position={position}
+      enabledRotations={[false, false, false]}
+      name={`human-player-${runtime.id}`}
+    >
+      <CapsuleCollider args={[colliderHalfHeight, colliderRadius]} friction={runtime.physical.traction} />
+      <HumanPlayerVisual
+        profile={profile}
+        runtime={runtime}
+        motion={motion}
+        kitColor={color}
+        secondaryColor={secondaryColor}
+        quality={quality}
+        controlled={controlled}
+        presentationPhase={presentationPhase}
+        celebrationTeam={celebrationTeam}
+      />
     </RigidBody>
   )
 }

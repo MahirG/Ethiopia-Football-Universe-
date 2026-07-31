@@ -32,6 +32,23 @@ A production-oriented, responsive Ethiopian football web game and management uni
 - **Offline-ready PWA** — installable manifest, service worker and local persistence.
 
 
+## Complete human-player simulation foundation
+
+The match engine now runs each of the 22 footballers as an independent human simulation agent rather than a shared animation preset:
+
+- deterministic position-specific bodies, faces, preferred feet, weak-foot ability, personalities and movement signatures;
+- persistent fatigue, exertion, sweat, wetness, dirt, balance, confidence, frustration, pain and injury state;
+- biomechanical acceleration, braking, turning-radius, traction, weight-transfer and planted-step locomotion;
+- camera-dependent digital-human detail with articulated limbs, hands, feet, facial structure, blinking, eye focus, scanning, breathing and effort expressions;
+- utility-based tactical perception of space, pressure, passing lanes, shooting lanes, offside, teammates, opponents, score and match time;
+- physically calculated foot, head and goalkeeper-glove contacts using momentum, contact angle, technique, skill, pressure, fatigue, weather and weak-foot error;
+- contextual first-touch mistakes, passing/shooting variation, dribbling cadence, tackles, fouls, cards, collision balance and injury risk;
+- goalkeeper perception delay, set position, trajectory reading, lateral adjustment, claiming, catching and parrying without privileged shot-destination knowledge;
+- relationship, communication, emotional-continuity and officiating reaction foundations;
+- server-authoritative networking and interpolation policy, motion-capture capture plan, asset register, performance presets and professional-footage validation targets.
+
+The runnable web build uses original procedural geometry and animation. Photogrammetry/scanned 150k–300k cinematic characters, full FACS facial capture, professional football mocap, strand hair, production cloth simulation and a real authoritative multiplayer server require external licensed assets, capture sessions and backend infrastructure. Those requirements are documented in `docs/human/` and `data/human/` rather than falsely represented as already supplied.
+
 ## Complete football audio system
 
 The web game now includes a centralized, data-driven audio architecture rather than direct sound calls:
@@ -72,6 +89,9 @@ npm run preview
 - Sprint: `Shift`
 - Pass: `E`
 - Shoot: `Space`
+- Tackle / challenge: `F`
+- Finesse modifier: `Alt`
+- Chip or loft modifier: `Q`
 - Cameras: Broadcast, Director, Follow, Ball and Free 8D
 - Free camera vertical movement: `Q` / `R`
 - Replay: use the Replay control or score a goal
@@ -86,7 +106,8 @@ src/
 ├── components/      # Product surfaces and prime broadcast match interface
 ├── data/            # Data-driven clubs and localized content
 ├── hooks/           # Persistent local state
-├── game/            # Rendering, physics, athletes, audio, atmosphere, stadium, cameras and effects
+├── game/            # Rendering, physics, match orchestration, stadium, cameras and effects
+├── human/           # Biomechanics, perception, utility AI, contacts, emotion, digital-human rig and networking
 ├── App.tsx          # Application shell and route state
 ├── styles.css       # Responsive design system
 └── types.ts         # Shared domain types
@@ -111,12 +132,13 @@ The club list is a structured research seed, not an assertion of official licens
 3. Phase 2 realism, atmosphere and replay systems — implemented.
 4. Phase 3 cinematic polish, audio and broadcast presentation — implemented.
 5. Phase 4 human athlete upgrade, goalkeeper AI and Amharic commentary — implemented.
-6. Licensed-quality GLTF athletes, professional mocap and compressed PBR asset packs.
-7. Advanced officiating, set pieces and deeper tactical AI.
-8. Real backend, accounts, cloud saves and live operations.
-9. Server-authoritative online multiplayer and spectator mode.
-10. Native PC/Android clients with shared services.
-11. Women’s football, youth national teams and additional divisions.
+6. Complete procedural human-player simulation foundation — implemented.
+7. Licensed-quality scanned athletes, professional mocap and compressed PBR asset packs.
+8. Advanced set pieces and expanded referee/VAR presentation.
+9. Real backend, accounts, cloud saves and live operations.
+10. Server-authoritative online multiplayer and spectator mode.
+11. Native PC/Android clients with shared services.
+12. Women’s football, youth national teams and additional divisions.
 
 ## Legal
 

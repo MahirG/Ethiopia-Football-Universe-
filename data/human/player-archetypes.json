@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "archetypes": [
+    { "role": "goalkeeper", "heightM": [1.82, 2.02], "massKg": [76, 96], "priorities": ["reach", "reaction", "aerial-strength", "distribution"] },
+    { "role": "centre-back", "heightM": [1.78, 1.98], "massKg": [73, 94], "priorities": ["strength", "heading", "balance", "marking"] },
+    { "role": "fullback", "heightM": [1.68, 1.88], "massKg": [63, 82], "priorities": ["acceleration", "stamina", "agility", "recovery"] },
+    { "role": "midfielder", "heightM": [1.66, 1.91], "massKg": [62, 84], "priorities": ["scanning", "first-touch", "passing", "balance"] },
+    { "role": "winger", "heightM": [1.64, 1.87], "massKg": [60, 79], "priorities": ["sprint", "dribbling", "turning", "improvisation"] },
+    { "role": "striker", "heightM": [1.70, 1.96], "massKg": [66, 91], "priorities": ["shooting", "strength", "movement", "composure"] }
+  ],
+  "variation": {
+    "uniqueBodyDimensions": 16,
+    "uniqueFaceDimensions": 15,
+    "personalityDimensions": 14,
+    "abilityDimensions": 17,
+    "movementSignatureDimensions": 8
+  }
+}
