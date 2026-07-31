@@ -1,0 +1,62 @@
+name: Finalize Phase 5 branch
+
+on:
+  pull_request:
+    branches: [p5-check]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.head_ref == 'agent/phase5-final'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase5-final
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply exact lint corrections and remove temporary transport files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path('src/phase5/engine.ts'): [
+                  ('    const ballVelocity = context.ballVelocity\n', ''),
+              ],
+              Path('src/phase5/tactics.ts'): [
+                  ('    const distance = player.position.distanceTo(new THREE.Vector3(...restart.position))\n', ''),
+              ],
+          }
+          for path, edits in replacements.items():
+              text = path.read_text()
+              for old, new in edits:
+                  if old not in text:
+                      raise SystemExit(f'Expected source token not found in {path}: {old!r}')
+                  text = text.replace(old, new, 1)
+              path.write_text(text)
+          PY
+          rm -rf .phase5 .phase5-large
+          rm -f .phase5-finalize
+          rm -f .github/workflows/phase5-finalize.yml
+          rm -f .github/workflows/phase5-large-source.yml
+          rm -f .github/workflows/phase5-source-export.yml
+          rm -f docs/phase5/EXPORT_TRIGGER.md
+      - name: Install dependencies
+        run: npm install
+      - name: Validate complete Phase 5
+        run: |
+          npm run lint
+          npm run build
+      - name: Commit clean validated branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Finalize Phase 5 competitive match intelligence'
+          git push origin HEAD:agent/phase5-final
