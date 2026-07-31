@@ -1,0 +1,47 @@
+{
+  "season": {
+    "id": "walia-season-01",
+    "name": "Walia Season 01",
+    "startsAt": "2026-08-01T00:00:00Z",
+    "endsAt": "2026-09-30T23:59:59Z",
+    "placementMatches": 5,
+    "ratingFloor": 600,
+    "ratingCeiling": 2400,
+    "decayAfterInactiveDays": 14,
+    "payToWin": false
+  },
+  "events": [
+    {
+      "id": "opening-weekend",
+      "name": "Opening Weekend",
+      "mode": "ranked-1v1",
+      "startsAt": "2026-08-01T15:00:00Z",
+      "endsAt": "2026-08-03T20:00:00Z",
+      "minimumFairPlay": 70,
+      "minimumMatches": 0
+    },
+    {
+      "id": "regional-community-cup",
+      "name": "Regional Community Cup",
+      "mode": "community-cup",
+      "startsAt": "2026-08-15T08:00:00Z",
+      "endsAt": "2026-08-16T20:00:00Z",
+      "minimumFairPlay": 80,
+      "minimumMatches": 3
+    },
+    {
+      "id": "addis-night-series",
+      "name": "Addis Night Series",
+      "mode": "tournament",
+      "startsAt": "2026-09-04T17:00:00Z",
+      "endsAt": "2026-09-06T21:00:00Z",
+      "minimumFairPlay": 85,
+      "minimumMatches": 10
+    }
+  ],
+  "maintenance": {
+    "status": "operational",
+    "message": "Online services use local simulation until regional infrastructure is connected.",
+    "nextWindow": "2026-08-05T02:00:00Z"
+  }
+}
