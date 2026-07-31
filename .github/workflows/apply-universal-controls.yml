@@ -12,12 +12,8 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: universal-football-controls
-  cancel-in-progress: false
-
 jobs:
-  apply-and-validate:
+  inspect-rejected-control-hunks:
     if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/universal-football-controls'
     runs-on: ubuntu-latest
     steps:
@@ -25,39 +21,29 @@ jobs:
         with:
           ref: agent/universal-football-controls
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Reconstruct controls source and merge onto latest main
+      - name: Reconstruct patch and print rejected hunks
+        shell: bash
         run: |
           set -euo pipefail
           BASE_COMMIT='1d345a003533962e2e14515211920707b4b0a74c'
           RAW_PATCH="$RUNNER_TEMP/universal-controls.raw.patch"
           PATCH="$RUNNER_TEMP/universal-controls.patch"
           SOURCE="$RUNNER_TEMP/control-source"
-
           cat .github/control-patch/part-*.b64 | tr -d '[:space:]' | base64 --decode > "$RAW_PATCH"
           echo "8302c9cbea67f6cb201dc7e0d3c8aae25b79c0b17e3dd21dfd2203235ab1762e  $RAW_PATCH" | sha256sum --check -
-
           python <<'PY'
           import os
           from pathlib import Path
-
           raw = Path(os.environ['RUNNER_TEMP']) / 'universal-controls.raw.patch'
           repaired = Path(os.environ['RUNNER_TEMP']) / 'universal-controls.patch'
-          lines = raw.read_text().splitlines()
-          output: list[str] = []
+          output = []
           in_hunk = False
-          for line in lines:
+          for line in raw.read_text().splitlines():
               if line.startswith('diff --git '):
                   in_hunk = False
-                  output.append(line)
-                  continue
-              if line.startswith('@@ '):
+              elif line.startswith('@@ '):
                   in_hunk = True
-                  output.append(line)
-                  continue
-              if in_hunk and not line.startswith((' ', '+', '-', '\\')):
+              elif in_hunk and not line.startswith((' ', '+', '-', '\\')):
                   line = ' ' + line
               elif in_hunk and line == '':
                   line = ' '
@@ -67,75 +53,10 @@ jobs:
           text = text.replace('<span>B SKILL/span>', '<span>B SKILL</span>')
           repaired.write_text(text)
           PY
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git worktree add --detach "$SOURCE" "$BASE_COMMIT"
-          git -C "$SOURCE" apply --3way --recount --index "$PATCH"
-
-          mapfile -t CHANGED < <(git -C "$SOURCE" diff --cached --name-only)
-          printf 'Recovered controls files:\n%s\n' "${CHANGED[*]}"
-
-          git merge --no-edit origin/main
-
-          for path in "${CHANGED[@]}"; do
-            target="$SOURCE/$path"
-            if [ ! -e "$target" ]; then
-              rm -f "$path"
-              continue
-            fi
-            mkdir -p "$(dirname "$path")"
-            if ! git cat-file -e "$BASE_COMMIT:$path" 2>/dev/null || [ ! -e "$path" ]; then
-              cp "$target" "$path"
-              continue
-            fi
-            if [ "$path" = 'package.json' ]; then
-              TARGET_PACKAGE="$target" python <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          current_path = Path('package.json')
-          target_path = Path(os.environ['TARGET_PACKAGE'])
-          current = json.loads(current_path.read_text())
-          target = json.loads(target_path.read_text())
-          for section in ('scripts', 'dependencies', 'devDependencies'):
-              current.setdefault(section, {}).update(target.get(section, {}))
-          current_path.write_text(json.dumps(current, indent=2) + '\n')
-          PY
-              continue
-            fi
-            base_file="$RUNNER_TEMP/base-${path//\//_}"
-            ours_file="$RUNNER_TEMP/ours-${path//\//_}"
-            git show "$BASE_COMMIT:$path" > "$base_file"
-            cp "$path" "$ours_file"
-            git merge-file -p "$ours_file" "$base_file" "$target" > "$path" || true
-          done
-
-          if grep -RIl --exclude-dir=.git -E '^(<<<<<<<|=======|>>>>>>>)' README.md package.json src 2>/dev/null | tee "$RUNNER_TEMP/control-conflicts.txt" | grep -q .; then
-            echo 'Controls merge produced conflicts:'
-            cat "$RUNNER_TEMP/control-conflicts.txt"
-            for file in $(cat "$RUNNER_TEMP/control-conflicts.txt"); do
-              echo "--- $file conflict regions ---"
-              grep -n -C 12 -E '^(<<<<<<<|=======|>>>>>>>)' "$file" || true
-            done
-            exit 1
-          fi
-
-          rm -rf .github/control-patch
-          rm -f .github/workflows/apply-universal-controls.yml
-          git add -A
-      - name: Install dependencies
-        run: npm install
-      - name: Validate universal controls
-        run: |
-          npm run input:validate
-          npm run audio:validate
-          npm run human:validate
-          npm run world:validate
-          npm run lint
-          npm run build
-      - name: Commit validated update
-        run: |
-          git commit -m 'Implement universal cross-device football controls'
-          git push origin HEAD:agent/universal-football-controls
+          git -C "$SOURCE" apply --recount --reject --whitespace=nowarn "$PATCH" || true
+          echo '=== REJECTED CONTROL HUNKS ==='
+          find "$SOURCE" -name '*.rej' -print -exec sh -c 'echo "--- $1 ---"; cat "$1"' _ {} \;
+          echo '=== PARTIALLY APPLIED FILES ==='
+          git -C "$SOURCE" status --short
+          exit 1
