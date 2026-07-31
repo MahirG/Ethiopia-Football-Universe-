@@ -1,0 +1,14 @@
+{
+  "project": "Ethiopia Football Universe",
+  "source": "main",
+  "releaseCommit": "34c5d77ebe62c3c575bc9e4e762d0af214cf7744",
+  "deployedAt": "2026-07-31T05:10:00Z",
+  "includes": [
+    "3D match engine",
+    "realism and replay systems",
+    "cinematic broadcast presentation",
+    "human player simulation",
+    "Amharic commentary",
+    "complete football audio architecture"
+  ]
+}
