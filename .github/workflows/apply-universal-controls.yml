@@ -28,10 +28,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Reconstruct and apply controls update
+      - name: Reconstruct, inspect and apply controls update
         run: |
           cat .github/control-patch/part-*.b64 | tr -d '[:space:]' | base64 --decode > "$RUNNER_TEMP/universal-controls.patch"
           echo "8302c9cbea67f6cb201dc7e0d3c8aae25b79c0b17e3dd21dfd2203235ab1762e  $RUNNER_TEMP/universal-controls.patch" | sha256sum --check -
+          echo '--- patch lines 190-260 ---'
+          nl -ba "$RUNNER_TEMP/universal-controls.patch" | sed -n '190,260p'
+          echo '--- patch headers ---'
+          grep -nE '^(diff --git|--- |\+\+\+ |@@ )' "$RUNNER_TEMP/universal-controls.patch" | sed -n '1,180p'
           git apply --check "$RUNNER_TEMP/universal-controls.patch"
           git apply "$RUNNER_TEMP/universal-controls.patch"
           rm -rf .github/control-patch
