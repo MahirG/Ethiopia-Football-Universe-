@@ -1,0 +1,31 @@
+name: Apply AAA core gameplay engine
+
+on:
+  push:
+    branches: [agent/aaa-core-match-gameplay-engine]
+    paths:
+      - .github/workflows/apply-aaa-core-gameplay.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-core-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/aaa-core-match-gameplay-engine
+          fetch-depth: 0
+      - name: Reconstruct validated gameplay engine package
+        shell: bash
+        run: |
+          cat .github/core-payload/part* > /tmp/core-gameplay-update.b64
+          base64 --decode /tmp/core-gameplay-update.b64 > /tmp/core-gameplay-update.tgz
+          tar -xzf /tmp/core-gameplay-update.tgz
+          rm -rf .github/core-payload
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Implement AAA core match gameplay engine"
+          git push origin HEAD:agent/aaa-core-match-gameplay-engine
