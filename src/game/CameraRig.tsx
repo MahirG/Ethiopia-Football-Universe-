@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import type { RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import type { CameraMode, PresentationPhase, QualityLevel } from './types'
-import type { KeyboardState } from './useKeyboard'
+import type { UniversalInputState } from '../input/types'
 
 interface CameraRigProps {
   mode: CameraMode
@@ -16,7 +16,7 @@ interface CameraRigProps {
   cameraShake: boolean
   ballRef: { current: RapierRigidBody | null }
   controlledPosition: { current: THREE.Vector3 }
-  keyboard: { current: KeyboardState }
+  controls: { current: UniversalInputState }
 }
 
 interface ReplayFrame {
@@ -28,7 +28,7 @@ interface ReplayFrame {
 const MAX_REPLAY_FRAMES = 300
 const REPLAY_DURATION = 4.4
 
-export function CameraRig({ mode, replayToken, replayActive, quality, presentationPhase, matchProgress, cameraShake, ballRef, controlledPosition, keyboard }: CameraRigProps) {
+export function CameraRig({ mode, replayToken, replayActive, quality, presentationPhase, matchProgress, cameraShake, ballRef, controlledPosition, controls }: CameraRigProps) {
   const { camera } = useThree()
   const desiredPosition = useRef(new THREE.Vector3())
   const desiredTarget = useRef(new THREE.Vector3())
@@ -129,7 +129,7 @@ export function CameraRig({ mode, replayToken, replayActive, quality, presentati
     }
 
     if (mode === 'free' && !replayActive) {
-      const held = keyboard.current.held
+      const held = controls.current.rawKeys
       camera.getWorldDirection(forward.current)
       forward.current.y = 0
       forward.current.normalize()

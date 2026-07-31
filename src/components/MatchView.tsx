@@ -12,6 +12,7 @@ import {
   Gamepad2,
   Radio,
   RotateCcw,
+  SlidersHorizontal,
   Shield,
   Sparkles,
   Sun,
@@ -28,6 +29,10 @@ import { AudioDebugOverlay } from '../audio/AudioDebugOverlay'
 import { AudioSettingsPanel } from '../audio/AudioSettingsPanel'
 import { useGlobalAudio } from '../audio/AudioProvider'
 import { useFootballAudio } from '../audio/useFootballAudio'
+import { UniversalControlsOverlay } from '../input/UniversalControlsOverlay'
+import { ControlSettingsPanel } from '../input/ControlSettingsPanel'
+import { getActiveInputDevice, subscribeFootballAction, subscribeInputDevice } from '../input/bus'
+import type { InputDeviceKind } from '../input/types'
 import type {
   Difficulty,
   LiveCameraMode,
@@ -131,6 +136,8 @@ export function MatchView() {
   const [cameraShake, setCameraShake] = useLocalStorage('efu-camera-shake', true)
   const [worldSelection, setWorldSelection] = useLocalStorage<WorldSelection>('efu-world-selection', DEFAULT_WORLD_SELECTION)
   const [showAudioSettings, setShowAudioSettings] = useState(false)
+  const [showControlSettings, setShowControlSettings] = useState(false)
+  const [activeInput, setActiveInput] = useState<InputDeviceKind>(() => getActiveInputDevice())
   const [showAudioDebug, setShowAudioDebug] = useState(false)
   const [sceneKey, setSceneKey] = useState(0)
   const [replayToken, setReplayToken] = useState(0)
@@ -326,6 +333,13 @@ export function MatchView() {
     clearPhaseTimers()
   }, [clearPhaseTimers])
 
+  useEffect(() => subscribeInputDevice(setActiveInput), [])
+
+  useEffect(() => subscribeFootballAction((action) => {
+    if (action === 'pause') void toggleMatch()
+    if (action === 'tactics') setShowControlSettings(true)
+  }), [toggleMatch])
+
   useEffect(() => {
     if (!running) return
     const interval = window.setInterval(() => {
@@ -397,9 +411,6 @@ export function MatchView() {
     if (eventMessage.toLowerCase().includes('restart')) audio.emit('ball-kicked', { scoreHome: score.home, scoreAway: score.away, matchMinute: score.time, force: 0.45 })
   }, [audio, score.away, score.home, score.time])
 
-  const dispatchKey = (key: string, down: boolean) => {
-    window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { key, bubbles: true }))
-  }
 
   const enterFullscreen = () => {
     void shellRef.current?.requestFullscreen?.()
@@ -542,26 +553,14 @@ export function MatchView() {
         )}
 
         <div className="broadcast-lower-third">
-          <span><Gamepad2 size={14} /> WASD MOVE</span><span>SHIFT SPRINT</span><span>E PASS</span><span>SPACE SHOOT</span><span>F TACKLE</span>{cameraMode === 'free' && <span>Q / R VERTICAL</span>}
+          {activeInput === 'gamepad' ? <><span><Gamepad2 size={14} /> LEFT STICK MOVE</span><span>RT SPRINT</span><span>A PASS</span><span>B SHOOT</span><span>LB SWITCH</span></> : activeInput === 'touch' ? <><span><Gamepad2 size={14} /> TOUCH CONTROLS</span><span>ANALOG MOVE</span><span>HOLD FOR POWER</span><span>MULTI-TOUCH READY</span></> : <><span><Gamepad2 size={14} /> WASD MOVE</span><span>SHIFT SPRINT</span><span>E PASS</span><span>T THROUGH</span><span>SPACE / LMB SHOOT</span><span>F TACKLE</span><span>B SKILL</span></>}{cameraMode === 'free' && <span>Q / R VERTICAL</span>}
         </div>
         <div className="broadcast-tech-strip"><span><Sparkles size={12} /> {quality.toUpperCase()}</span><span>{weather.toUpperCase()} {Math.round(weatherIntensity * 100)}%</span><span>{timeOfDay.toUpperCase()}</span></div>
 
         <button className="stats-button" onClick={() => setShowStats((value) => !value)} title="Toggle live statistics"><BarChart3 size={16} /></button>
         <button className="fullscreen-button" onClick={enterFullscreen} title="Enter fullscreen"><Expand size={16} /></button>
 
-        <div className="game-controls-overlay">
-          <div className="touch-dpad mobile-game-controls">
-            <button onPointerDown={() => dispatchKey('w', true)} onPointerUp={() => dispatchKey('w', false)}>▲</button>
-            <button onPointerDown={() => dispatchKey('a', true)} onPointerUp={() => dispatchKey('a', false)}>◀</button>
-            <button onPointerDown={() => dispatchKey('d', true)} onPointerUp={() => dispatchKey('d', false)}>▶</button>
-            <button onPointerDown={() => dispatchKey('s', true)} onPointerUp={() => dispatchKey('s', false)}>▼</button>
-          </div>
-          <div className="touch-actions mobile-game-controls">
-            <button onPointerDown={() => dispatchKey('e', true)} onPointerUp={() => dispatchKey('e', false)}>PASS</button>
-            <button onPointerDown={() => dispatchKey(' ', true)} onPointerUp={() => dispatchKey(' ', false)}>SHOOT</button>
-            <button onPointerDown={() => dispatchKey('f', true)} onPointerUp={() => dispatchKey('f', false)}>TACKLE</button>
-          </div>
-        </div>
+        <UniversalControlsOverlay enabled={running && !replayActive && presentationPhase === 'live'} />
       </section>
 
       <section className="match-toolbar panel match-toolbar-3d phase-three-toolbar phase-four-toolbar">
@@ -572,6 +571,7 @@ export function MatchView() {
           </button>
           <button className="secondary-button replay-button" onClick={() => beginReplay('Manual instant replay')} disabled={score.time === 0 || replayActive || presentationPhase !== 'live'}><Film size={17} /> Replay</button>
           <button className="secondary-button" onClick={reset}><RotateCcw size={17} /> Reset</button>
+          <button className="secondary-button" onClick={() => setShowControlSettings(true)}><SlidersHorizontal size={17} /> Controls</button>
         </div>
 
         <div className="camera-picker" aria-label="Camera mode">
@@ -615,6 +615,7 @@ export function MatchView() {
         <article className="stat-panel panel"><Trophy /><div><span>Living match ecosystem</span><strong>{world.competition.name}</strong><small>{world.venue.architecture} {world.competition.visualIdentity}</small></div></article>
       </div>
 
+      <ControlSettingsPanel open={showControlSettings} onClose={() => setShowControlSettings(false)} />
       <AudioSettingsPanel settings={audioSettings} patch={patchAudioSettings} reset={resetAudioSettings} open={showAudioSettings} setOpen={setShowAudioSettings} />
       <AudioDebugOverlay profile={audio.profile} open={showAudioDebug} close={() => setShowAudioDebug(false)} trigger={(event) => audio.emit(event, { team: 'home', scoreHome: score.home, scoreAway: score.away, matchMinute: score.time, force: 0.85 })} />
 

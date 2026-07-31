@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "actions": ["move", "sprint", "controlled-sprint", "shield", "pass", "through-pass", "lob-pass", "shoot", "finesse", "chip", "skill", "press", "tackle", "slide-tackle", "jockey", "player-switch", "cancel", "manual-control", "pause", "tactics"],
+  "presets": [
+    { "id": "classic", "devices": ["keyboard", "mouse", "gamepad", "touch"], "competitive": true },
+    { "id": "modern", "devices": ["keyboard", "mouse", "gamepad", "touch"], "competitive": true },
+    { "id": "competitive", "devices": ["keyboard", "mouse", "gamepad", "touch"], "competitive": true },
+    { "id": "mobile-simple", "devices": ["touch"], "competitive": false },
+    { "id": "mobile-advanced", "devices": ["touch"], "competitive": true },
+    { "id": "one-handed", "devices": ["keyboard", "touch", "accessibility"], "competitive": true }
+  ],
+  "devicePolicy": {
+    "physicsParity": true,
+    "automaticPromptSwitching": true,
+    "simultaneousDevices": true,
+    "rankedAssistDisclosure": true
+  }
+}
