@@ -112,7 +112,7 @@ jobs:
               old = item['old']
               target.parent.mkdir(parents=True, exist_ok=True)
               base.parent.mkdir(parents=True, exist_ok=True)
-              if old == '0000000':
+              if not old.strip('0'):
                   if target.exists():
                       target.unlink()
                   continue
