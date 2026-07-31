@@ -73,13 +73,43 @@ jobs:
           PY
           bash /tmp/finalize-universal-controls.sh
 
-      - name: Inspect generated integration source
+      - name: Repair recovered syntax and hook dependencies
         shell: bash
         run: |
-          echo '=== useUniversalInput.ts 145-180 ==='
-          nl -ba src/input/useUniversalInput.ts | sed -n '145,180p'
-          echo '=== MatchScene.tsx 245-295 ==='
-          nl -ba src/game/MatchScene.tsx | sed -n '245,295p'
+          python <<'PY'
+          from pathlib import Path
+
+          input_path = Path('src/input/useUniversalInput.ts')
+          input_text = input_path.read_text()
+          input_text = input_text.replace(
+              "if (!gamepadPrevious.current.has(action) transientPressed.current.add(action)",
+              "if (!gamepadPrevious.current.has(action)) transientPressed.current.add(action)",
+          )
+          input_text = input_text.replace(
+              "if (!gamepadHeld.has(action) transientReleased.current.add(action)",
+              "if (!gamepadHeld.has(action)) transientReleased.current.add(action)",
+          )
+          input_path.write_text(input_text)
+
+          scene_path = Path('src/game/MatchScene.tsx')
+          scene_text = scene_path.read_text()
+          scene_text = scene_text.replace(
+              "  const [competitiveState, setCompetitiveState] = useState(() => director.snapshot())\n  useEffect(() => director.updateSettings(competitiveSettings), [director, competitiveSettings])",
+              "  const [competitiveState, setCompetitiveState] = useState(() => director.snapshot())\n  const onEvent = props.onEvent\n  useEffect(() => director.updateSettings(competitiveSettings), [director, competitiveSettings])",
+              1,
+          )
+          scene_text = scene_text.replace(
+              "            props.onEvent(`Manual player switch · #${candidates[0].index + 1}`)",
+              "            onEvent(`Manual player switch · #${candidates[0].index + 1}`)",
+              1,
+          )
+          scene_text = scene_text.replace(
+              "  }, [controlledIndex, controls, humanWorld, props.onEvent])",
+              "  }, [controlledIndex, controls, humanWorld, onEvent])",
+              1,
+          )
+          scene_path.write_text(scene_text)
+          PY
 
       - name: Install dependencies
         run: npm install
