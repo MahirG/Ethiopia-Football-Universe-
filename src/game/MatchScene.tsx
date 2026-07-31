@@ -16,7 +16,9 @@ import type { MatchAction, MatchSceneProps, TeamSide, TimeOfDay } from './types'
 import { useKeyboard } from './useKeyboard'
 import { createHumanWorld, updateHumanTelemetry, type HumanWorldBundle } from '../human/world'
 import { WorldLayer } from '../world/WorldLayer'
+import { DEFAULT_COMPETITIVE_SETTINGS } from '../phase5/catalog'
 import { CompetitiveMatchDirector } from '../phase5/engine'
+import { CompetitiveOverlay } from '../phase5/CompetitiveOverlay'
 import { MatchIntelligenceLayer } from '../phase5/MatchIntelligenceLayer'
 import type { CompetitiveMatchState, Phase5BallContact, Phase5FoulContact } from '../phase5/types'
 import './phase4.css'
@@ -78,6 +80,9 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onTelemetry, weather,
   const humanTelemetryCooldown = useRef(0)
   const competitiveTelemetryCooldown = useRef(0)
   const lastManualRequest = useRef(0)
+  const lastCompetitiveContact = useRef(0)
+  const lastCollisionFoul = useRef(0)
+  const previousCompetitiveVelocity = useMemo(() => new THREE.Vector3(), [])
   const ballPosition = useMemo(() => new THREE.Vector3(), [])
   const ballVelocity = useMemo(() => new THREE.Vector3(), [])
 
@@ -107,6 +112,62 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onTelemetry, weather,
       director.requestManual(props.manualRestartRequest, matchProgress * 90)
     }
 
+    const velocityChange = previousCompetitiveVelocity.distanceTo(ballVelocity)
+    const closestPlayer = humanWorld.world.players.reduce<(typeof humanWorld.world.players)[number] | null>((best, player) => {
+      if (!best) return player
+      return player.position.distanceTo(ballPosition) < best.position.distanceTo(ballPosition) ? player : best
+    }, null)
+    if (closestPlayer && closestPlayer.position.distanceTo(ballPosition) < 1.45 && velocityChange > 0.9 && state.clock.elapsedTime - lastCompetitiveContact.current > 0.16) {
+      const action = (['pass', 'shoot', 'clear', 'tackle', 'intercept', 'goalkeeper-claim'] as const).includes(closestPlayer.action as never)
+        ? closestPlayer.action as Phase5BallContact['action']
+        : ballVelocity.length() > 13 ? 'shoot' : ballVelocity.length() > 6 ? 'pass' : 'dribble'
+      const receiver = action === 'pass'
+        ? humanWorld.world.players.filter((player) => player.team === closestPlayer.team && player.id !== closestPlayer.id).sort((a, b) => a.position.distanceTo(ballPosition) - b.position.distanceTo(ballPosition))[0]
+        : undefined
+      director.registerContact({
+        team: closestPlayer.team,
+        playerId: closestPlayer.id,
+        receiverId: receiver?.id,
+        action,
+        position: [ballPosition.x, ballPosition.y, ballPosition.z],
+        ballSpeed: ballVelocity.length(),
+        offsideRisk: closestPlayer.offsideRisk,
+        timestamp: state.clock.elapsedTime,
+      }, humanWorld.world.players, matchProgress * 90)
+      lastCompetitiveContact.current = state.clock.elapsedTime
+    }
+    previousCompetitiveVelocity.copy(ballVelocity)
+
+    if (state.clock.elapsedTime - lastCollisionFoul.current > 0.7) {
+      outer: for (const player of humanWorld.world.players) {
+        for (const opponent of humanWorld.world.players) {
+          if (opponent.team === player.team || opponent.id === player.id) continue
+          const distanceBetween = player.position.distanceTo(opponent.position)
+          const relativeSpeed = player.velocity.clone().sub(opponent.velocity).length()
+          if (distanceBetween < 0.62 && relativeSpeed > 5.6) {
+            const severity = THREE.MathUtils.clamp(relativeSpeed / 10 + (1 - player.physical.balance) * 0.18, 0.35, 1)
+            const foul: Phase5FoulContact = {
+              team: player.team,
+              playerId: player.id,
+              opponentId: opponent.id,
+              position: [player.position.x, player.position.y, player.position.z],
+              assessment: {
+                foul: true,
+                severity,
+                card: severity > 0.9 ? 'red' : severity > 0.62 ? 'yellow' : 'none',
+                reason: severity > 0.9 ? 'dangerous' : severity > 0.68 ? 'reckless' : 'late',
+              },
+              lastDefender: Math.abs(opponent.position.x - (player.team === 'home' ? HALF_LENGTH : -HALF_LENGTH)) < 18,
+              timestamp: state.clock.elapsedTime,
+            }
+            director.registerFoul(foul, { matchMinute: matchProgress * 90, possession: director.snapshot().possession, ballPosition, ballVelocity })
+            lastCollisionFoul.current = state.clock.elapsedTime
+            break outer
+          }
+        }
+      }
+    }
+
     const competitiveResult = director.tick({
       now: state.clock.elapsedTime,
       delta,
@@ -134,7 +195,7 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onTelemetry, weather,
       }
     }
     for (const event of competitiveResult.events) {
-      props.onCompetitiveEvent(event)
+      props.onCompetitiveEvent?.(event)
       props.onEvent(event.message)
       if (event.type === 'goal-confirmed' && event.team) scoreGoal(event.team)
     }
@@ -168,7 +229,7 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onTelemetry, weather,
     if (competitiveResult.changed || competitiveTelemetryCooldown.current <= 0) {
       const snapshot = director.snapshot()
       setCompetitiveState(snapshot)
-      props.onCompetitiveState(snapshot)
+      props.onCompetitiveState?.(snapshot)
       competitiveTelemetryCooldown.current = 0.2
     }
   })
@@ -182,31 +243,22 @@ export function MatchScene(props: MatchSceneProps) {
   const humanWorldRef = useRef<HumanWorldBundle | null>(null)
   const directorRef = useRef<CompetitiveMatchDirector | null>(null)
   if (!humanWorldRef.current) humanWorldRef.current = createHumanWorld(props.weather, props.weatherIntensity)
-  if (!directorRef.current) directorRef.current = new CompetitiveMatchDirector(props.competitiveSettings)
+  const competitiveSettings = props.competitiveSettings ?? DEFAULT_COMPETITIVE_SETTINGS
+  if (!directorRef.current) directorRef.current = new CompetitiveMatchDirector(competitiveSettings)
   const humanWorld = humanWorldRef.current
   const director = directorRef.current
   const [competitiveState, setCompetitiveState] = useState(() => director.snapshot())
-  useEffect(() => director.updateSettings(props.competitiveSettings), [director, props.competitiveSettings])
+  useEffect(() => director.updateSettings(competitiveSettings), [director, competitiveSettings])
 
   const preset = QUALITY_PRESETS[props.quality]
   const time = fixedTime(props.timeOfDay, props.matchProgress)
   const light = lightState(time)
   const handleAction = useCallback((action: MatchAction, team: TeamSide) => props.onAction(action, team), [props])
   const handleGoal = useCallback((team: TeamSide) => props.onGoal(team), [props])
-  const handleBallContact = useCallback((contact: Phase5BallContact) => director.registerContact(contact, humanWorld.world.players, props.matchProgress * 90), [director, humanWorld, props.matchProgress])
-  const handleFoul = useCallback((contact: Phase5FoulContact) => {
-    const translation = ballRef.current?.translation()
-    const velocity = ballRef.current?.linvel()
-    director.registerFoul(contact, {
-      matchMinute: props.matchProgress * 90,
-      possession: director.snapshot().possession,
-      ballPosition: new THREE.Vector3(translation?.x ?? 0, translation?.y ?? 0.22, translation?.z ?? 0),
-      ballVelocity: new THREE.Vector3(velocity?.x ?? 0, velocity?.y ?? 0, velocity?.z ?? 0),
-    })
-  }, [director, props.matchProgress])
   const weatherBackground = props.weather === 'overcast' ? '#7f949d' : props.weather === 'rain' || props.weather === 'storm' ? '#637780' : props.weather === 'fog' ? '#aab1b0' : props.weather === 'snow' ? '#c8d4d8' : props.weather === 'dust' ? '#a9825d' : props.weather === 'heat' ? '#d7a46f' : light.bg
 
   return <div className="phase5-match-stage human-simulation-stage">
+    <CompetitiveOverlay state={competitiveState} />
     <Canvas className="match-canvas" shadows dpr={preset.dpr} camera={{ position: [0, 26, 38], fov: 45, near: 0.1, far: 280 }} gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: time === 'night' ? 0.86 : 1.04 }}>
       <color attach="background" args={[weatherBackground]} />
       <fog attach="fog" args={[weatherBackground, props.weather === 'fog' ? 18 : props.weather === 'rain' || props.weather === 'storm' ? 42 : 88, props.weather === 'fog' ? 86 : props.weather === 'rain' || props.weather === 'storm' ? 130 : 230]} />
@@ -219,9 +271,9 @@ export function MatchScene(props: MatchSceneProps) {
           <Pitch weather={props.weather} quality={props.quality} eventPulse={props.replayToken} world={props.world} />
           <Stadium timeOfDay={time} weather={props.weather} quality={props.quality} difficulty={props.difficulty} eventPulse={props.replayToken} world={props.world} />
           <WorldLayer world={props.world} homeName={props.homeName} awayName={props.awayName} homeColor={props.homeColor} awayColor={props.awayColor} eventPulse={props.replayToken} />
-          <MatchIntelligenceLayer state={competitiveState} settings={props.competitiveSettings} />
+          <MatchIntelligenceLayer state={competitiveState} settings={competitiveSettings} />
           <Football ref={ballRef} weather={props.weather} quality={props.quality} world={props.world} />
-          {(['home', 'away'] as const).flatMap((team) => FORMATION.map(([x, z], index) => <PlayerAvatar key={`${team}-${index}`} index={index} team={team} position={team === 'home' ? [x, PLAYER_HEIGHT / 2, z] : [-x, PLAYER_HEIGHT / 2, -z]} color={team === 'home' ? props.homeColor : props.awayColor} secondaryColor={team === 'home' ? props.homeSecondaryColor : props.awaySecondaryColor} controlled={team === 'home' && index === 9} running={props.running && props.cameraMode !== 'free' && !props.replayActive} difficulty={props.difficulty} quality={props.quality} keyboard={keyboard} ballRef={ballRef} controlledPosition={controlledPosition} matchProgress={props.matchProgress} presentationPhase={props.presentationPhase} celebrationTeam={props.celebrationTeam} weather={props.weather} weatherIntensity={props.weatherIntensity} scoreHome={props.scoreHome} scoreAway={props.scoreAway} humanWorld={humanWorld} competitiveState={competitiveState} competitiveSettings={props.competitiveSettings} onBallContact={handleBallContact} onFoul={handleFoul} onEvent={props.onEvent} onAction={handleAction} onSoundEvent={props.onAudioEvent} />))}
+          {(['home', 'away'] as const).flatMap((team) => FORMATION.map(([x, z], index) => <PlayerAvatar key={`${team}-${index}`} index={index} team={team} position={team === 'home' ? [x, PLAYER_HEIGHT / 2, z] : [-x, PLAYER_HEIGHT / 2, -z]} color={team === 'home' ? props.homeColor : props.awayColor} secondaryColor={team === 'home' ? props.homeSecondaryColor : props.awaySecondaryColor} controlled={team === 'home' && index === 9} running={props.running && props.cameraMode !== 'free' && !props.replayActive} difficulty={props.difficulty} quality={props.quality} keyboard={keyboard} ballRef={ballRef} controlledPosition={controlledPosition} matchProgress={props.matchProgress} presentationPhase={props.presentationPhase} celebrationTeam={props.celebrationTeam} weather={props.weather} weatherIntensity={props.weatherIntensity} scoreHome={props.scoreHome} scoreAway={props.scoreAway} humanWorld={humanWorld} onEvent={props.onEvent} onAction={handleAction} onSoundEvent={props.onAudioEvent} />))}
           <SurfaceEffects ballRef={ballRef} controlledPosition={controlledPosition} quality={props.quality} weather={props.weather} />
           <Runtime {...props} scoreGoal={handleGoal} ballRef={ballRef} controlledPosition={controlledPosition} humanWorld={humanWorld} director={director} setCompetitiveState={setCompetitiveState} />
         </Physics>
