@@ -1,4 +1,4 @@
-const CACHE = 'efu-v5-phase4-amharic-human';
+const CACHE = 'efu-v6-complete-audio';
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['./', './index.html', './manifest.webmanifest', './icon.svg'])));
   self.skipWaiting();
