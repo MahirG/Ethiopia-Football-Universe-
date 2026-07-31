@@ -1,0 +1,26 @@
+name: Phase 5 source export
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  export-source:
+    if: github.head_ref == 'agent/phase-5-competitive-intelligence'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive repository source
+        run: |
+          tar --exclude='.git' --exclude='node_modules' --exclude='dist' -czf "$RUNNER_TEMP/efu-phase5-source.tgz" .
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: efu-phase5-source
+          path: ${{ runner.temp }}/efu-phase5-source.tgz
+          if-no-files-found: error
+          retention-days: 1
