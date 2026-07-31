@@ -4,7 +4,7 @@ import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/r
 import * as THREE from 'three'
 import { HALF_LENGTH, HALF_WIDTH } from './config'
 import type { Difficulty, MatchAction, PresentationPhase, QualityLevel, TeamSide, Weather } from './types'
-import type { KeyboardState } from './useKeyboard'
+import type { UniversalInputState } from '../input/types'
 import type { AudioEventContext, FootballAudioEvent } from '../audio/types'
 import { HumanPlayerVisual } from '../human/HumanPlayerVisual'
 import { calculateBallContact, estimateFirstTouchQuality } from '../human/ballContact'
@@ -27,7 +27,7 @@ interface PlayerAvatarProps {
   running: boolean
   difficulty: Difficulty
   quality: QualityLevel
-  keyboard: { current: KeyboardState }
+  controls: { current: UniversalInputState }
   ballRef: { current: RapierRigidBody | null }
   controlledPosition: { current: THREE.Vector3 }
   matchProgress: number
@@ -77,7 +77,7 @@ export function PlayerAvatar({
   running,
   difficulty,
   quality,
-  keyboard,
+  controls,
   ballRef,
   controlledPosition,
   matchProgress,
@@ -253,48 +253,80 @@ export function PlayerAvatar({
     }
 
     desiredVelocity.set(0, 0, 0)
+    if (controlled && !running) {
+      controls.current.pressed.clear()
+      controls.current.released.clear()
+    }
     if (running) {
       if (controlled) {
-        const held = keyboard.current.held
-        let inputX = Number(held.has('w') || held.has('arrowup')) - Number(held.has('s') || held.has('arrowdown'))
-        let inputZ = Number(held.has('d') || held.has('arrowright')) - Number(held.has('a') || held.has('arrowleft'))
-        const inputLength = Math.hypot(inputX, inputZ)
-        if (inputLength > 0) { inputX /= inputLength; inputZ /= inputLength }
-        const sprinting = held.has('shift') && inputLength > 0
-        const requestedSpeed = sprinting ? 10 : inputLength > 0 ? 6.5 : 0
+        const input = controls.current
+        const inputX = input.move.x * input.move.magnitude
+        const inputZ = input.move.z * input.move.magnitude
+        const inputLength = input.move.magnitude
+        const sprinting = input.held.has('sprint') && inputLength > 0
+        const controlledSprint = input.held.has('controlled-sprint') && inputLength > 0
+        const shielding = input.held.has('shield')
+        const requestedSpeed = sprinting ? 10 : controlledSprint ? 7.6 : inputLength > 0 ? THREE.MathUtils.lerp(2.1, 6.5, inputLength) : 0
         desiredVelocity.set(inputX * requestedSpeed, 0, inputZ * requestedSpeed)
         runtime.hasBallIntent = perception.distanceToBall < 1.7
 
-        if (keyboard.current.pressed.has(' ') && !pendingContact.current) {
-          pendingContact.current = { action: 'shoot', target: new THREE.Vector3(attackDirection(team) * HALF_LENGTH, 0.75, THREE.MathUtils.clamp(-ballPosition.z * 0.08, -1.2, 1.2)), executeAt: now + 0.12, technique: held.has('alt') ? 'finesse-shot' : held.has('q') ? 'chip-shot' : held.has('shift') ? 'power-shot' : 'placed-shot' }
-          runtime.action = 'shoot'
-          runtime.actionStartedAt = now
-          motion.current.kick = 0.35
+        if (input.pressed.has('cancel') && pendingContact.current && pendingContact.current.executeAt - now > 0.04) {
+pendingContact.current = null
+runtime.action = 'hold'
+motion.current.kick = 0
+motion.current.tackle = 0
+onEvent('Action cancelled')
         }
-        if (keyboard.current.pressed.has('e') && !pendingContact.current) {
-          const teammate = [...perception.teammates].sort((a, b) => {
-            const aValue = a.position.clone().sub(runtime.position).dot(new THREE.Vector3(attackDirection(team), 0, 0)) - a.position.distanceTo(runtime.position) * 0.15
-            const bValue = b.position.clone().sub(runtime.position).dot(new THREE.Vector3(attackDirection(team), 0, 0)) - b.position.distanceTo(runtime.position) * 0.15
-            return bValue - aValue
-          })[0]
-          pendingContact.current = { action: 'pass', target: teammate?.position.clone().add(teammate.velocity.clone().multiplyScalar(0.42)) ?? runtime.position.clone().add(new THREE.Vector3(attackDirection(team) * 12, 0, 0)), executeAt: now + 0.1, technique: held.has('q') ? 'lofted-pass' : held.has('shift') ? 'driven-pass' : held.has('alt') ? 'through-ball' : 'short-pass' }
-          runtime.action = 'pass'
-          runtime.actionStartedAt = now
-          motion.current.kick = 0.3
+
+        if (input.released.has('shoot') && !pendingContact.current) {
+const charge = THREE.MathUtils.clamp(input.lastHoldDurations.get('shoot') ?? 0.08, 0.05, 0.8)
+const targetHeight = input.held.has('chip') ? 2.2 : THREE.MathUtils.lerp(0.45, 1.2, charge / 0.8)
+pendingContact.current = { action: 'shoot', target: new THREE.Vector3(attackDirection(team) * HALF_LENGTH, targetHeight, THREE.MathUtils.clamp(-ballPosition.z * 0.08, -1.2, 1.2)), executeAt: now + 0.12, technique: input.held.has('finesse') ? 'finesse-shot' : input.held.has('chip') ? 'chip-shot' : charge > 0.52 || input.held.has('sprint') ? 'power-shot' : 'placed-shot' }
+runtime.action = 'shoot'
+runtime.actionStartedAt = now
+motion.current.kick = THREE.MathUtils.lerp(0.28, 0.48, charge / 0.8)
         }
-        if (keyboard.current.pressed.has('f') && !pendingContact.current) {
-          pendingContact.current = { action: 'tackle', target: ballPosition.clone(), executeAt: now + 0.08, technique: held.has('shift') ? 'slide-tackle' : 'poke-tackle' }
-          runtime.action = 'tackle'
-          runtime.actionStartedAt = now
-          motion.current.tackle = 1
+
+        const passAction = input.released.has('lob-pass') ? 'lob-pass' : input.released.has('through-pass') ? 'through-pass' : input.released.has('pass') ? 'pass' : null
+        if (passAction && !pendingContact.current) {
+const teammate = [...perception.teammates].sort((a, b) => {
+  const aValue = a.position.clone().sub(runtime.position).dot(new THREE.Vector3(attackDirection(team), 0, 0)) - a.position.distanceTo(runtime.position) * 0.15
+  const bValue = b.position.clone().sub(runtime.position).dot(new THREE.Vector3(attackDirection(team), 0, 0)) - b.position.distanceTo(runtime.position) * 0.15
+  return bValue - aValue
+})[0]
+const lead = passAction === 'through-pass' ? 1.05 : 0.42
+const target = teammate?.position.clone().add(teammate.velocity.clone().multiplyScalar(lead)) ?? runtime.position.clone().add(new THREE.Vector3(attackDirection(team) * (passAction === 'through-pass' ? 18 : 12), 0, 0))
+const charge = THREE.MathUtils.clamp(input.lastHoldDurations.get(passAction) ?? 0.08, 0.05, 0.8)
+pendingContact.current = { action: 'pass', target, executeAt: now + 0.1, technique: passAction === 'lob-pass' ? 'lofted-pass' : passAction === 'through-pass' ? 'through-ball' : charge > 0.48 || input.held.has('sprint') ? 'driven-pass' : 'short-pass' }
+runtime.action = 'pass'
+runtime.actionStartedAt = now
+motion.current.kick = THREE.MathUtils.lerp(0.24, 0.4, charge / 0.8)
         }
-        keyboard.current.pressed.delete(' ')
-        keyboard.current.pressed.delete('e')
-        keyboard.current.pressed.delete('f')
+
+        if ((input.pressed.has('tackle') || input.pressed.has('slide-tackle')) && !pendingContact.current) {
+pendingContact.current = { action: 'tackle', target: ballPosition.clone(), executeAt: now + 0.08, technique: input.pressed.has('slide-tackle') || input.held.has('sprint') ? 'slide-tackle' : 'poke-tackle' }
+runtime.action = 'tackle'
+runtime.actionStartedAt = now
+motion.current.tackle = 1
+        }
+
+        if (input.pressed.has('skill') && perception.distanceToBall < 1.4 && !pendingContact.current) {
+const skillDirection = inputLength > 0 ? desiredVelocity.clone().normalize() : new THREE.Vector3(attackDirection(team), 0, 0)
+const skillTarget = runtime.position.clone().add(skillDirection.multiplyScalar(3.2)).add(new THREE.Vector3(0, 0, team === 'home' ? 0.9 : -0.9))
+if (performContact('dribble', skillTarget, perception.pressure, profile.preferredFoot, 'close-dribble')) {
+  dribbleCooldown.current = 0.34
+  runtime.action = 'dribble'
+  onEvent('Context skill move')
+}
+        }
+
+        ;(['cancel', 'tackle', 'slide-tackle', 'skill'] as const).forEach((action) => input.pressed.delete(action))
+        ;(['shoot', 'pass', 'through-pass', 'lob-pass'] as const).forEach((action) => input.released.delete(action))
 
         if (inputLength > 0 && perception.distanceToBall < 1.25 && dribbleCooldown.current === 0 && !pendingContact.current) {
-          const dribbleTarget = runtime.position.clone().add(desiredVelocity.clone().normalize().multiplyScalar(sprinting ? 4.4 : 2.1))
-          if (performContact('dribble', dribbleTarget, perception.pressure, profile.preferredFoot, sprinting ? 'sprint-dribble' : perception.pressure > 0.55 ? 'protective-touch' : 'close-dribble')) dribbleCooldown.current = THREE.MathUtils.lerp(0.42, 0.26, profile.ability.dribbling) / profile.movement.touchRhythm
+const dribbleTarget = runtime.position.clone().add(desiredVelocity.clone().normalize().multiplyScalar(sprinting ? 4.4 : controlledSprint ? 2.8 : shielding ? 1.45 : 2.1))
+const technique = sprinting ? 'sprint-dribble' : shielding || perception.pressure > 0.55 ? 'protective-touch' : 'close-dribble'
+if (performContact('dribble', dribbleTarget, perception.pressure, profile.preferredFoot, technique)) dribbleCooldown.current = THREE.MathUtils.lerp(0.42, 0.26, profile.ability.dribbling) / profile.movement.touchRhythm
         }
       } else {
         if (decisionCooldown.current <= 0) {

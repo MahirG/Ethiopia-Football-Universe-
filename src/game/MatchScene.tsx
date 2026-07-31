@@ -13,7 +13,7 @@ import { QUALITY_PRESETS } from './quality'
 import { Stadium } from './Stadium'
 import { SurfaceEffects } from './SurfaceEffects'
 import type { MatchAction, MatchSceneProps, TeamSide, TimeOfDay } from './types'
-import { useKeyboard } from './useKeyboard'
+import { useUniversalInput } from '../input/useUniversalInput'
 import { createHumanWorld, updateHumanTelemetry, type HumanWorldBundle } from '../human/world'
 import { WorldLayer } from '../world/WorldLayer'
 import { DEFAULT_COMPETITIVE_SETTINGS } from '../phase5/catalog'
@@ -65,13 +65,14 @@ function Rain({ count, intensity }: { count: number; intensity: number }) {
 interface RuntimeProps extends MatchSceneProps {
   ballRef: { current: RapierRigidBody | null }
   controlledPosition: { current: THREE.Vector3 }
+  controlledIndex: number
   scoreGoal: (team: TeamSide) => void
   humanWorld: HumanWorldBundle
   director: CompetitiveMatchDirector
   setCompetitiveState: (state: CompetitiveMatchState) => void
 }
 
-function Runtime({ ballRef, controlledPosition, scoreGoal, onTelemetry, weather, weatherIntensity, matchProgress, humanWorld, director, setCompetitiveState, ...props }: RuntimeProps) {
+function Runtime({ ballRef, controlledPosition, controlledIndex, scoreGoal, onTelemetry, weather, weatherIntensity, matchProgress, humanWorld, director, setCompetitiveState, ...props }: RuntimeProps) {
   const lastTelemetry = useRef(0)
   const lastPlayer = useRef(controlledPosition.current.clone())
   const distance = useRef(0)
@@ -218,7 +219,7 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onTelemetry, weather,
     if (state.clock.elapsedTime - lastTelemetry.current > 0.45) {
       lastTelemetry.current = state.clock.elapsedTime
       const home = THREE.MathUtils.clamp(50 + (position.x / HALF_LENGTH) * 28, 18, 82)
-      const controlledRuntime = humanWorld.world.players.find((player) => player.id === 'home-9')
+      const controlledRuntime = humanWorld.world.players.find((player) => player.team === 'home' && player.index === controlledIndex)
       onTelemetry({ homeTerritory: Math.round(home), awayTerritory: Math.round(100 - home), ballSpeed: Math.round(Math.hypot(velocity.x, velocity.y, velocity.z) * 36) / 10, controlledDistance: Math.round(distance.current * 10) / 10, stamina: Math.round((1 - (controlledRuntime?.physical.fatigue ?? matchProgress * 0.5)) * 100) })
     }
     if (humanTelemetryCooldown.current <= 0) {
@@ -237,9 +238,10 @@ function Runtime({ ballRef, controlledPosition, scoreGoal, onTelemetry, weather,
 }
 
 export function MatchScene(props: MatchSceneProps) {
-  const keyboard = useKeyboard()
+  const controls = useUniversalInput()
   const ballRef = useRef<RapierRigidBody>(null)
   const controlledPosition = useRef(new THREE.Vector3(FORMATION[9][0], PLAYER_HEIGHT / 2, FORMATION[9][1]))
+  const [controlledIndex, setControlledIndex] = useState(9)
   const humanWorldRef = useRef<HumanWorldBundle | null>(null)
   const directorRef = useRef<CompetitiveMatchDirector | null>(null)
   if (!humanWorldRef.current) humanWorldRef.current = createHumanWorld(props.weather, props.weatherIntensity)
@@ -248,7 +250,39 @@ export function MatchScene(props: MatchSceneProps) {
   const humanWorld = humanWorldRef.current
   const director = directorRef.current
   const [competitiveState, setCompetitiveState] = useState(() => director.snapshot())
+  const onEvent = props.onEvent
   useEffect(() => director.updateSettings(competitiveSettings), [director, competitiveSettings])
+
+  useEffect(() => {
+    let frame = 0
+    const watchPlayerSwitch = () => {
+      if (controls.current.pressed.has('player-switch')) {
+        controls.current.pressed.delete('player-switch')
+        const ball = ballRef.current?.translation()
+        const move = controls.current.move
+        if (ball) {
+          const candidates = humanWorld.world.players
+            .filter((player) => player.team === 'home' && player.index !== controlledIndex)
+            .map((player) => {
+              const distance = Math.hypot(player.position.x - ball.x, player.position.z - ball.z)
+              const directionX = player.position.x - controlledPosition.current.x
+              const directionZ = player.position.z - controlledPosition.current.z
+              const directionLength = Math.max(0.001, Math.hypot(directionX, directionZ))
+              const directionalBias = move.magnitude > 0.15 ? 4 * (1 - ((directionX / directionLength) * move.x + (directionZ / directionLength) * move.z)) : 0
+              return { index: player.index, score: distance + directionalBias + (player.role === 'goalkeeper' ? 9 : 0) }
+            })
+            .sort((a, b) => a.score - b.score)
+          if (candidates[0]) {
+            setControlledIndex(candidates[0].index)
+            onEvent(`Manual player switch · #${candidates[0].index + 1}`)
+          }
+        }
+      }
+      frame = window.requestAnimationFrame(watchPlayerSwitch)
+    }
+    frame = window.requestAnimationFrame(watchPlayerSwitch)
+    return () => window.cancelAnimationFrame(frame)
+  }, [controlledIndex, controls, humanWorld, onEvent])
 
   const preset = QUALITY_PRESETS[props.quality]
   const time = fixedTime(props.timeOfDay, props.matchProgress)
@@ -273,14 +307,14 @@ export function MatchScene(props: MatchSceneProps) {
           <WorldLayer world={props.world} homeName={props.homeName} awayName={props.awayName} homeColor={props.homeColor} awayColor={props.awayColor} eventPulse={props.replayToken} />
           <MatchIntelligenceLayer state={competitiveState} settings={competitiveSettings} />
           <Football ref={ballRef} weather={props.weather} quality={props.quality} world={props.world} />
-          {(['home', 'away'] as const).flatMap((team) => FORMATION.map(([x, z], index) => <PlayerAvatar key={`${team}-${index}`} index={index} team={team} position={team === 'home' ? [x, PLAYER_HEIGHT / 2, z] : [-x, PLAYER_HEIGHT / 2, -z]} color={team === 'home' ? props.homeColor : props.awayColor} secondaryColor={team === 'home' ? props.homeSecondaryColor : props.awaySecondaryColor} controlled={team === 'home' && index === 9} running={props.running && props.cameraMode !== 'free' && !props.replayActive} difficulty={props.difficulty} quality={props.quality} keyboard={keyboard} ballRef={ballRef} controlledPosition={controlledPosition} matchProgress={props.matchProgress} presentationPhase={props.presentationPhase} celebrationTeam={props.celebrationTeam} weather={props.weather} weatherIntensity={props.weatherIntensity} scoreHome={props.scoreHome} scoreAway={props.scoreAway} humanWorld={humanWorld} onEvent={props.onEvent} onAction={handleAction} onSoundEvent={props.onAudioEvent} />))}
+          {(['home', 'away'] as const).flatMap((team) => FORMATION.map(([x, z], index) => <PlayerAvatar key={`${team}-${index}`} index={index} team={team} position={team === 'home' ? [x, PLAYER_HEIGHT / 2, z] : [-x, PLAYER_HEIGHT / 2, -z]} color={team === 'home' ? props.homeColor : props.awayColor} secondaryColor={team === 'home' ? props.homeSecondaryColor : props.awaySecondaryColor} controlled={team === 'home' && index === controlledIndex} running={props.running && props.cameraMode !== 'free' && !props.replayActive} difficulty={props.difficulty} quality={props.quality} controls={controls} ballRef={ballRef} controlledPosition={controlledPosition} matchProgress={props.matchProgress} presentationPhase={props.presentationPhase} celebrationTeam={props.celebrationTeam} weather={props.weather} weatherIntensity={props.weatherIntensity} scoreHome={props.scoreHome} scoreAway={props.scoreAway} humanWorld={humanWorld} onEvent={props.onEvent} onAction={handleAction} onSoundEvent={props.onAudioEvent} />))}
           <SurfaceEffects ballRef={ballRef} controlledPosition={controlledPosition} quality={props.quality} weather={props.weather} />
-          <Runtime {...props} scoreGoal={handleGoal} ballRef={ballRef} controlledPosition={controlledPosition} humanWorld={humanWorld} director={director} setCompetitiveState={setCompetitiveState} />
+          <Runtime {...props} scoreGoal={handleGoal} ballRef={ballRef} controlledPosition={controlledPosition} controlledIndex={controlledIndex} humanWorld={humanWorld} director={director} setCompetitiveState={setCompetitiveState} />
         </Physics>
       </Suspense>
       <CinematicAtmosphere timeOfDay={props.timeOfDay} weather={props.weather} weatherIntensity={props.weatherIntensity} quality={props.quality} matchProgress={props.matchProgress} eventPulse={props.replayToken} presentationPhase={props.presentationPhase} />
       {(props.weather === 'rain' || props.weather === 'storm' || props.weather === 'snow') && <Rain count={Math.round(preset.rainDrops * (0.45 + props.weatherIntensity * 0.85))} intensity={props.weather === 'snow' ? props.weatherIntensity * 0.45 : props.weatherIntensity} />}
-      <CameraRig mode={props.cameraMode} replayToken={props.replayToken} replayActive={props.replayActive} quality={props.quality} presentationPhase={props.presentationPhase} matchProgress={props.matchProgress} cameraShake={props.cameraShake} ballRef={ballRef} controlledPosition={controlledPosition} keyboard={keyboard} />
+      <CameraRig mode={props.cameraMode} replayToken={props.replayToken} replayActive={props.replayActive} quality={props.quality} presentationPhase={props.presentationPhase} matchProgress={props.matchProgress} cameraShake={props.cameraShake} ballRef={ballRef} controlledPosition={controlledPosition} controls={controls} />
       <AdaptiveDpr pixelated={props.quality === 'performance'} />
     </Canvas>
   </div>
