@@ -1,0 +1,22 @@
+{
+  "phase": 6,
+  "name": "Connected Football Platform",
+  "version": 1,
+  "features": [
+    "player-identity",
+    "cloud-save",
+    "matchmaking",
+    "ranked-seasons",
+    "private-rooms",
+    "reconnect",
+    "leaderboards",
+    "integrity-chain",
+    "moderation-evidence",
+    "live-operations"
+  ],
+  "requiredModes": 6,
+  "requiredRegions": 6,
+  "requiredDivisions": 7,
+  "serverAuthority": true,
+  "offlineFallback": true
+}
