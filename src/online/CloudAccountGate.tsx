@@ -4,6 +4,7 @@ import {
   captureAuthSessionFromUrl, cloudAuthConfigured, hasCloudSession,
   requestMagicLink, signOutCloudSession,
 } from './auth'
+import './cloud-account.css'
 
 export function CloudAccountGate() {
   const [email, setEmail] = useState('')
