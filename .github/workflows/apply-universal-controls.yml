@@ -5,6 +5,9 @@ on:
     branches: [agent/universal-football-controls]
     paths:
       - '.github/workflows/apply-universal-controls.yml'
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
@@ -15,7 +18,7 @@ concurrency:
 
 jobs:
   apply-and-validate:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/universal-football-controls'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
