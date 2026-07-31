@@ -1,0 +1,178 @@
+diff --git a/.github/workflows/phase5-source-export.yml b/.github/workflows/phase5-source-export.yml
+deleted file mode 100644
+index a2f6e7d..0000000
+--- a/.github/workflows/phase5-source-export.yml
++++ /dev/null
+@@ -1,26 +0,0 @@
+-name: Phase 5 source export
+-
+-on:
+-  pull_request:
+-    branches: [main]
+-    types: [opened, synchronize, reopened]
+-
+-permissions:
+-  contents: read
+-
+-jobs:
+-  export-source:
+-    if: github.head_ref == 'agent/phase-5-competitive-intelligence'
+-    runs-on: ubuntu-latest
+-    steps:
+-      - uses: actions/checkout@v4
+-      - name: Archive repository source
+-        run: |
+-          tar --exclude='.git' --exclude='node_modules' --exclude='dist' -czf "$RUNNER_TEMP/efu-phase5-source.tgz" .
+-      - name: Upload source artifact
+-        uses: actions/upload-artifact@v4
+-        with:
+-          name: efu-phase5-source
+-          path: ${{ runner.temp }}/efu-phase5-source.tgz
+-          if-no-files-found: error
+-          retention-days: 1
+diff --git a/README.md b/README.md
+index dcd4e5f..58384f3 100644
+--- a/README.md
++++ b/README.md
+@@ -133,8 +133,8 @@ The club list is a structured research seed, not an assertion of official licens
+ 4. Phase 3 cinematic polish, audio and broadcast presentation — implemented.
+ 5. Phase 4 human athlete upgrade, goalkeeper AI and Amharic commentary — implemented.
+ 6. Complete procedural human-player simulation foundation — implemented.
+-7. Licensed-quality scanned athletes, professional mocap and compressed PBR asset packs.
+-8. Advanced set pieces and expanded referee/VAR presentation.
++7. Phase 5 competitive match intelligence, professional asset pipeline, set pieces and referee/VAR presentation — implemented.
++8. Licensed scanned athletes, commissioned professional mocap and compressed PBR source packs.
+ 9. Real backend, accounts, cloud saves and live operations.
+ 10. Server-authoritative online multiplayer and spectator mode.
+ 11. Native PC/Android clients with shared services.
+@@ -150,3 +150,19 @@ This repository does not claim affiliation with the Ethiopian Football Federatio
+ The match now runs through a data-driven football-world layer with configurable competitions, tournament rules, Ethiopian venue archetypes, engineered surfaces, ball profiles, dynamic attendance, crowd groups and emotional memory, active benches and stadium staff, synchronized screens, match-day phases, cultural presentation, ceremonies, accessibility controls, world networking snapshots and automated validation. See `src/world/`, `data/world/` and `docs/world/`.
+ 
+ Run `npm run world:validate` to validate the competition, venue, surface, ball, operations and network manifests.
++
++## Phase 5 competitive match intelligence
++
++The playable match now includes a deterministic competitive director around the existing human, physics, audio and living-world systems:
++
++- correct throw-ins, corners, goal kicks, kick-offs, direct and indirect free kicks, penalties and dropped-ball foundations;
++- pass-time offside candidates that are penalized only when the player becomes actively involved;
++- referee profiles controlling strictness, advantage, cards, penalties and VAR intervention;
++- advantage continuation and recall, disciplinary records and stoppage-time calculation;
++- goal, penalty, direct-red, mistaken-identity and offside VAR review states;
++- fourteen selectable set-piece routines and six tactical presets affecting line height, width, compactness, pressing and restart positioning;
++- visible referee crews, assistant flags, offside training lines, restart markers and stadium VAR presentation;
++- authoritative competitive snapshots for ball, clock, score, offside, fouls, cards, VAR and restarts;
++- nine registered GLTF/FBX/KTX2/Basis asset slots with licensing checks and guaranteed procedural fallback.
++
++Run `npm run phase5:validate` to validate the laws, tactics, referee, set-piece, VAR, networking and asset-ingestion manifests. External scanned athletes, professional mocap and licensed PBR packs are not bundled; the repository provides the ingestion contract and safe fallback pipeline.
+diff --git a/data/phase5/asset-pipeline.json b/data/phase5/asset-pipeline.json
+new file mode 100644
+index 0000000..175abbb
+--- /dev/null
++++ b/data/phase5/asset-pipeline.json
+@@ -0,0 +1,10 @@
++{
++  "version": 1,
++  "legalPolicy": "External assets must be licensed and registered before production activation.",
++  "runtimeFallback": "Original procedural web assets remain mandatory and crash-safe.",
++  "slots": 9,
++  "tiers": ["procedural", "production-ready", "cinematic"],
++  "formats": ["glb", "gltf", "fbx", "ktx2", "basis", "json"],
++  "compression": ["Draco or Meshopt geometry", "KTX2/Basis Universal textures", "quantized animation tracks"],
++  "forbidden": ["unlicensed player likenesses", "ripped game assets", "unauthorized stadium scans", "copyrighted broadcast packages"]
++}
+diff --git a/data/phase5/competitive-manifest.json b/data/phase5/competitive-manifest.json
+new file mode 100644
+index 0000000..af75e1b
+--- /dev/null
++++ b/data/phase5/competitive-manifest.json
+@@ -0,0 +1,10 @@
++{
++  "version": 1,
++  "phase": "competitive-match-intelligence",
++  "tacticalPresets": 6,
++  "refereeProfiles": 4,
++  "setPieceRoutines": 14,
++  "restartTypes": ["kickoff", "throw-in", "corner", "goal-kick", "direct-free-kick", "indirect-free-kick", "penalty", "drop-ball"],
++  "varReviewTypes": ["goal", "penalty", "red-card", "mistaken-identity", "offside"],
++  "authoritativeDomains": ["ball", "clock", "offside", "fouls", "cards", "var", "restarts", "score"]
++}
+diff --git a/data/phase5/laws-and-var.json b/data/phase5/laws-and-var.json
+new file mode 100644
+index 0000000..2998f77
+--- /dev/null
++++ b/data/phase5/laws-and-var.json
+@@ -0,0 +1,8 @@
++{
++  "version": 1,
++  "boundaryDecisions": ["goal", "throw-in", "corner", "goal-kick"],
++  "offside": { "evaluateAtPass": true, "penalizeOnInvolvement": true, "visibleTrainingLine": true },
++  "discipline": ["play-on", "advantage", "foul", "yellow-card", "red-card", "penalty"],
++  "var": { "enabledByDefault": true, "reviewable": ["goal", "penalty", "direct-red", "mistaken-identity", "offside"], "minimumIntervention": "clear-and-obvious configurable threshold" },
++  "addedTimeSources": ["restarts", "cards", "var-reviews"]
++}
+diff --git a/docs/phase5/ARCHITECTURE.md b/docs/phase5/ARCHITECTURE.md
+new file mode 100644
+index 0000000..a1cadc0
+--- /dev/null
++++ b/docs/phase5/ARCHITECTURE.md
+@@ -0,0 +1,15 @@
++# Phase 5 architecture
++
++Phase 5 adds a deterministic competitive-match director beside the existing physics and human-agent simulation. Player and ball contacts remain physical; the director interprets those contacts through football laws and emits authoritative decisions, restarts, cards, VAR reviews and tactical telemetry.
++
++## Runtime flow
++
++1. Human agents create physical ball contacts and tackle assessments.
++2. The competitive director records possession, last touch and pass receivers.
++3. The laws module evaluates active offside involvement, pitch exits, fouls, advantage, cards and penalties.
++4. The restart engine freezes and places the Rapier ball, arranges team anchors and releases the selected routine.
++5. VAR temporarily freezes the authoritative ball state and resolves configured review categories.
++6. The presentation layer renders referee crews, assistant flags, offside guides, restart markers and VAR stadium messaging.
++7. Network snapshots expose only deterministic, gameplay-relevant state.
++
++The director does not replace the human, audio or living-world systems. It coordinates them through semantic events.
+diff --git a/docs/phase5/ASSET_PIPELINE.md b/docs/phase5/ASSET_PIPELINE.md
+new file mode 100644
+index 0000000..2c8c488
+--- /dev/null
++++ b/docs/phase5/ASSET_PIPELINE.md
+@@ -0,0 +1,14 @@
++# Professional asset-ingestion pipeline
++
++The repository now defines replaceable slots for gameplay, broadcast and cinematic player models; a FACS-compatible facial rig; locomotion and ball-action mocap packs; and compressed kit, stadium and ball materials.
++
++## Required production rules
++
++- Use GLB/GLTF with a documented football skeleton contract.
++- Compress geometry with Draco or Meshopt where quality permits.
++- Use KTX2/Basis Universal for GPU texture delivery.
++- Quantize and trim animation tracks; preserve planted-foot and ball-contact timing.
++- Register ownership, territory, platform and commercial-use rights before setting `licensed: true`.
++- Keep the procedural fallback available for missing, corrupt, oversized or unauthorized assets.
++
++No scanned player, official likeness, professional mocap or branded material pack was supplied with this task. The pipeline is production-ready; the external source assets remain a commissioning and licensing requirement.
+diff --git a/docs/phase5/EXPORT_TRIGGER.md b/docs/phase5/EXPORT_TRIGGER.md
+deleted file mode 100644
+index 505737e..0000000
+--- a/docs/phase5/EXPORT_TRIGGER.md
++++ /dev/null
+@@ -1 +0,0 @@
+-Temporary source-export trigger for the Phase 5 implementation branch. This file will be removed before merge.
+diff --git a/docs/phase5/IMPLEMENTATION_MATRIX.md b/docs/phase5/IMPLEMENTATION_MATRIX.md
+new file mode 100644
+index 0000000..228256f
+--- /dev/null
++++ b/docs/phase5/IMPLEMENTATION_MATRIX.md
+@@ -0,0 +1,15 @@
++# Phase 5 implementation matrix
++
++| Capability | Browser implementation |
++|---|---|
++| Correct boundary restarts | Deterministic last-touch classifier and Rapier ball directives |
++| Offside | Pass-time candidate plus active-involvement decision |
++| Fouls and cards | Physical tackle assessment interpreted by referee profiles |
++| Advantage | Possession and attacking-value window with recall |
++| Penalties | Penalty-area geometry and dedicated routines |
++| VAR | Timed authoritative review state, stadium board and semantic audio events |
++| Set pieces | Fourteen configurable routines and tactical restart anchors |
