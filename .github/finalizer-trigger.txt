@@ -1,0 +1,1 @@
+Trigger the controlled universal-controls finalizer after the runner workflow was installed on main.
