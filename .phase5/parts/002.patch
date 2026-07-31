@@ -1,0 +1,134 @@
++    setCompetitiveState((current) => current.sequence >= event.sequence ? current : { ...current, sequence: event.sequence, lastMessage: event.message })
++    const context = { team: event.team, matchMinute: event.matchMinute, scoreHome: score.home, scoreAway: score.away, force: Number(event.card?.severity ?? 0.75), metadata: event.metadata }
++    if (event.type === 'foul') audio.emit('foul-committed', context)
++    else if (event.type === 'penalty-awarded') audio.emit('penalty-awarded', context)
++    else if (event.type === 'offside') audio.emit('offside', context)
++    else if (event.type === 'advantage-played') audio.emit('advantage', context)
++    else if (event.type === 'card') audio.emit(event.card?.color === 'red' ? 'red-card' : 'yellow-card', context)
++    else if (event.type === 'var-start') { audio.emit('var-review', context); audio.setSnapshot('var-review', 0.2) }
++    else if (event.type === 'var-decision') { audio.emit('var-decision', context); audio.setSnapshot('normal-match', 0.3) }
++    else if (event.type === 'restart-taken') audio.emit('ball-kicked', context)
++  }, [audio, score.away, score.home])
++
++
+   const handleSceneEvent = useCallback((eventMessage: string) => {
+     setMessage(eventMessage)
+     if (eventMessage.toLowerCase().includes('restart')) audio.emit('ball-kicked', { scoreHome: score.home, scoreAway: score.away, matchMinute: score.time, force: 0.45 })
+@@ -409,7 +437,7 @@ export function MatchView() {
+   const phaseLabel = presentationPhase === 'idle' ? 'pre-match' : presentationPhase
+ 
+   return (
+-    <div className="view-stack match-view phase-three-view phase-four-view">
++    <div className="view-stack match-view phase-three-view phase-four-view phase-five-view">
+       <section className="page-title-row">
+         <div>
+           <span className="section-kicker">Living football world · competitions, venues, operations and atmosphere</span>
+@@ -438,6 +466,7 @@ export function MatchView() {
+       </section>
+ 
+       <WorldControlPanel selection={worldSelection} patchSelection={patchWorldSelection} world={world} disabled={running || replayActive || presentationPhase === 'intro'} />
++      <CompetitiveControlPanel settings={competitiveSettings} patch={patchCompetitiveSettings} request={requestRestart} />
+ 
+       <section
+         ref={shellRef}
+@@ -462,6 +491,7 @@ export function MatchView() {
+           </div>
+         )}
+         {audioSettings.visualIndicators && audio.profile?.lastEvents[0] && <div className="sound-indicator">◉ {audio.profile.lastEvents[0]}</div>}
++        <CompetitiveOverlay state={competitiveState} />
+ 
+         <MatchScene
+           key={sceneKey}
+@@ -469,6 +499,8 @@ export function MatchView() {
+           homeName={home.shortName}
+           awayName={away.shortName}
+           world={world}
++          competitiveSettings={competitiveSettings}
++          manualRestartRequest={manualRestartRequest}
+           homeColor={home.colors[0]}
+           homeSecondaryColor={home.colors[1]}
+           awayColor={away.colors[0]}
+@@ -492,6 +524,8 @@ export function MatchView() {
+           onAction={handleAction}
+           onTelemetry={setTelemetry}
+           onHumanTelemetry={setHumanTelemetry}
++          onCompetitiveState={setCompetitiveState}
++          onCompetitiveEvent={handleCompetitiveEvent}
+           onAudioEvent={(event, context) => audio.emit(event, { ...context, scoreHome: score.home, scoreAway: score.away, matchMinute: score.time })}
+         />
+ 
+@@ -533,6 +567,12 @@ export function MatchView() {
+               <div><small>Organic mistakes</small><b>{humanTelemetry.mistakes}</b></div>
+               <div><small>GK reaction</small><b>{humanTelemetry.goalkeeperReactionMs || '—'} ms</b></div>
+               <div><small>Max player speed</small><b>{(humanTelemetry.maxPlayerSpeed * 3.6).toFixed(1)} km/h</b></div>
++              <div><small>Fouls</small><b>{competitiveState.fouls.home} — {competitiveState.fouls.away}</b></div>
++              <div><small>Offsides</small><b>{competitiveState.offsides.home} — {competitiveState.offsides.away}</b></div>
++              <div><small>Cards</small><b>{competitiveState.cards.length}</b></div>
++              <div><small>VAR reviews</small><b>{competitiveState.telemetry.reviewCount}</b></div>
++              <div><small>Added time</small><b>+{competitiveState.addedTimeMinutes}</b></div>
++              <div><small>Asset readiness</small><b>{Math.round(competitiveState.telemetry.assetReadiness * 100)}%</b></div>
+             </div>
+             <div className="human-decision-grid">
+               {Object.entries(humanTelemetry.activeDecisions).filter(([, count]) => count > 0).map(([action, count]) => <span key={action}><b>{count}</b>{action}</span>)}
+@@ -544,7 +584,7 @@ export function MatchView() {
+         <div className="broadcast-lower-third">
+           <span><Gamepad2 size={14} /> WASD MOVE</span><span>SHIFT SPRINT</span><span>E PASS</span><span>SPACE SHOOT</span><span>F TACKLE</span>{cameraMode === 'free' && <span>Q / R VERTICAL</span>}
+         </div>
+-        <div className="broadcast-tech-strip"><span><Sparkles size={12} /> {quality.toUpperCase()}</span><span>{weather.toUpperCase()} {Math.round(weatherIntensity * 100)}%</span><span>{timeOfDay.toUpperCase()}</span></div>
++        <div className="broadcast-tech-strip"><span><Sparkles size={12} /> {quality.toUpperCase()}</span><span>{weather.toUpperCase()} {Math.round(weatherIntensity * 100)}%</span><span>{timeOfDay.toUpperCase()}</span><span>{competitiveState.playState.toUpperCase()}</span></div>
+ 
+         <button className="stats-button" onClick={() => setShowStats((value) => !value)} title="Toggle live statistics"><BarChart3 size={16} /></button>
+         <button className="fullscreen-button" onClick={enterFullscreen} title="Enter fullscreen"><Expand size={16} /></button>
+@@ -610,8 +650,8 @@ export function MatchView() {
+       </section>
+ 
+       <div className="dashboard-grid three phase-three-stats">
+-        <article className="stat-panel panel"><Activity /><div><span>Human biomechanics runtime</span><strong>22 independent football agents</strong><small>Weight transfer, acceleration limits, turn radius, foot planting, surface traction, fatigue, balance and context-sensitive imperfection</small></div></article>
+-        <article className="stat-panel panel"><Shield /><div><span>Physical football intelligence</span><strong>Perception · utility AI · contact physics</strong><small>Passing lanes, pressure, support runs, marking, pressing, tackles, weak-foot errors and non-magnetic ball interaction</small></div></article>
++        <article className="stat-panel panel"><Activity /><div><span>Competitive laws runtime</span><strong>{competitiveState.playState.replace('-', ' ')}</strong><small>Touchline and goal-line decisions, correct restarts, offside involvement, advantage, cards, penalties, added time and deterministic state transitions</small></div></article>
++        <article className="stat-panel panel"><Shield /><div><span>Tactical match intelligence</span><strong>{competitiveState.tacticalPhase.home} · {competitiveState.tacticalPhase.away}</strong><small>Team shape, line height, width, compactness, pressing phases and restart positioning respond to the selected tactical plans</small></div></article>
+         <article className="stat-panel panel"><Trophy /><div><span>Living match ecosystem</span><strong>{world.competition.name}</strong><small>{world.venue.architecture} {world.competition.visualIdentity}</small></div></article>
+       </div>
+ 
+diff --git a/src/game/MatchScene.tsx b/src/game/MatchScene.tsx
+index d33bda6..8ee73d0 100644
+--- a/src/game/MatchScene.tsx
++++ b/src/game/MatchScene.tsx
+@@ -1,4 +1,4 @@
+-import { Suspense, useCallback, useMemo, useRef } from 'react'
++import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+ import { AdaptiveDpr, Sky, SoftShadows } from '@react-three/drei'
+ import { Canvas, useFrame } from '@react-three/fiber'
+ import { Physics, type RapierRigidBody } from '@react-three/rapier'
+@@ -6,7 +6,7 @@ import * as THREE from 'three'
+ import { Football } from './Ball'
+ import { CameraRig } from './CameraRig'
+ import { CinematicAtmosphere } from './CinematicAtmosphere'
+-import { FORMATION, GOAL_HEIGHT, GOAL_WIDTH, HALF_LENGTH, HALF_WIDTH, PLAYER_HEIGHT } from './config'
++import { FORMATION, HALF_LENGTH, PLAYER_HEIGHT } from './config'
+ import { Pitch } from './Pitch'
+ import { PlayerAvatar } from './PlayerAvatar'
+ import { QUALITY_PRESETS } from './quality'
+@@ -16,8 +16,12 @@ import type { MatchAction, MatchSceneProps, TeamSide, TimeOfDay } from './types'
+ import { useKeyboard } from './useKeyboard'
+ import { createHumanWorld, updateHumanTelemetry, type HumanWorldBundle } from '../human/world'
+ import { WorldLayer } from '../world/WorldLayer'
++import { CompetitiveMatchDirector } from '../phase5/engine'
++import { MatchIntelligenceLayer } from '../phase5/MatchIntelligenceLayer'
++import type { CompetitiveMatchState, Phase5BallContact, Phase5FoulContact } from '../phase5/types'
+ import './phase4.css'
+ import '../human/human.css'
++import '../phase5/phase5.css'
+ 
+ type FixedTime = Exclude<TimeOfDay, 'dynamic'>
+ 
+@@ -53,12 +57,7 @@ function Rain({ count, intensity }: { count: number; intensity: number }) {
+     ref.current.position.x -= delta * 3
+     if (ref.current.position.y < -38) ref.current.position.set(0, 0, 0)
+   })
+-  return (
+-    <points ref={ref} frustumCulled={false}>
+-      <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /></bufferGeometry>
+-      <pointsMaterial color="#d8e9f4" size={0.05 + intensity * 0.035} transparent opacity={0.3 + intensity * 0.4} depthWrite={false} />
+-    </points>
+-  )
