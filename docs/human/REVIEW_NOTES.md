@@ -8,4 +8,4 @@ Validate with:
 - `npm run lint`
 - `npm run build`
 
-The production build runs both semantic validators before strict TypeScript and Vite bundling.
+The production build runs both semantic validators before strict TypeScript and Vite bundling. Shared `TeamSide` and `Weather` types are re-exported by the human-system boundary for downstream modules.
