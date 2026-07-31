@@ -1,4 +1,4 @@
-const CACHE = 'efu-v10-phase6-connected-platform';
+const CACHE = 'efu-v11-kickoff-safety';
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['./', './index.html', './manifest.webmanifest', './icon.svg'])));
   self.skipWaiting();
