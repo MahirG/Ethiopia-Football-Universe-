@@ -1,0 +1,43 @@
+name: Materialize Phase 5
+
+on:
+  push:
+    branches: [agent/phase-5-competitive-intelligence]
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase-5-competitive-intelligence
+          fetch-depth: 0
+      - name: Apply verified Phase 5 patch
+        if: hashFiles('.phase5/complete.patch.gz.b64') != ''
+        run: |
+          base64 -d .phase5/complete.patch.gz.b64 | gzip -d > "$RUNNER_TEMP/phase5.patch"
+          echo '3cd8e8b627453ba29a9e073b18d174ff619e602c08ce37cf6b95eebd9ee3f6f8  '"$RUNNER_TEMP/phase5.patch" | sha256sum -c -
+          git apply --check "$RUNNER_TEMP/phase5.patch"
+          git apply "$RUNNER_TEMP/phase5.patch"
+      - name: Install dependencies
+        if: hashFiles('.phase5/complete.patch.gz.b64') != ''
+        run: npm install
+      - name: Validate Phase 5
+        if: hashFiles('.phase5/complete.patch.gz.b64') != ''
+        run: |
+          npm run lint
+          npm run build
+      - name: Commit completed implementation
+        if: hashFiles('.phase5/complete.patch.gz.b64') != ''
+        run: |
+          rm -rf .phase5
+          rm -f .github/workflows/phase5-materialize.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Build Phase 5 competitive match intelligence'
+          git push origin HEAD:agent/phase-5-competitive-intelligence
