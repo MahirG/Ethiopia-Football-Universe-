@@ -1,0 +1,76 @@
+name: Run universal controls finalizer
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: run-universal-controls-finalizer
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.repository == 'MahirG/Ethiopia-Football-Universe-' && github.head_ref == 'agent/universal-football-controls-clean'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out controlled integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/universal-football-controls-clean
+          fetch-depth: 0
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Execute checked-in finalizer
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/finalize-universal-controls.yml')
+          lines = path.read_text().splitlines()
+          start = None
+          for index, line in enumerate(lines):
+              if line.strip() == '- name: Recover and integrate universal controls':
+                  for cursor in range(index + 1, len(lines)):
+                      if lines[cursor].strip() == 'run: |':
+                          start = cursor + 1
+                          break
+                  break
+          if start is None:
+              raise SystemExit('Finalizer integration step was not found')
+          body = []
+          for line in lines[start:]:
+              if line.startswith('      - name:'):
+                  break
+              body.append(line[10:] if line.startswith('          ') else line)
+          script = Path('/tmp/finalize-universal-controls.sh')
+          script.write_text('\n'.join(body) + '\n')
+          PY
+          bash /tmp/finalize-universal-controls.sh
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate universal controls and full game
+        run: |
+          npm run input:validate
+          npm run audio:validate
+          npm run human:validate
+          npm run world:validate
+          npm run lint
+          npm run build
+
+      - name: Commit validated controls
+        shell: bash
+        run: |
+          git add -A
+          git commit -m 'Integrate universal cross-device football controls'
+          git push origin HEAD:agent/universal-football-controls-clean
