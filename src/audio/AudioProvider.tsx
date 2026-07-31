@@ -91,6 +91,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// Provider and hook intentionally share this module to keep the context instance singular.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useGlobalAudio() {
   const value = useContext(AudioContext)
   if (!value) throw new Error('useGlobalAudio must be used inside AudioProvider')
