@@ -9,6 +9,8 @@ A production-oriented, responsive Ethiopian football web game and management uni
 
 ## What is implemented
 
+- **Phase 4 human match presentation** — improved anatomical silhouettes, proportionally varied faces and bodies, realistic hands, knees, calves, boots, hair and facial hair, plus smarter goalkeepers that read shots, move laterally and make reactive saves.
+- **Live Amharic commentator** — spoken and captioned Amharic calls for introductions, kick-off, passing, shots, goalkeeper saves, goals, restarts, half-time, second-half and final results. Speech uses the browser voice engine and falls back to synchronized Ethiopic subtitles when an `am-ET` voice is unavailable.
 - **Phase 3 prime match broadcast** — televised opening sequence, halftime and full-time packages, team celebrations, cinematic replay direction, live data panels and immersive presentation modes.
 - **Procedural match audio** — browser-native crowd ambience, referee whistles, pass and shot impacts and goal surges without licensed sound files.
 - **Dynamic atmosphere** — automatic afternoon-to-golden-hour-to-night progression, moving cloud banks, variable rain intensity, lightning flashes, floodlight shafts, lens flare and celebration confetti.
@@ -26,8 +28,28 @@ A production-oriented, responsive Ethiopian football web game and management uni
 - **Persistent manager career** — club selection, fixtures, budget, training, recovery, scouting, facility upgrades, morale, fitness, reputation and board objectives.
 - **Tactical laboratory** — formations, mentality, pressing, width, tempo and team instructions.
 - **Competition, academy and community modules** — league tables, fixtures, awards, regional prospects, events and moderation principles.
-- **Languages and accessibility** — English, Amharic, Afaan Oromo and Tigrinya foundations, reduced motion, appearance controls, optional camera shake, sound controls and mobile-first layouts.
+- **Languages and accessibility** — English, Amharic, Afaan Oromo and Tigrinya foundations, spoken/captioned Amharic match commentary, reduced motion, appearance controls, optional camera shake, independent stadium/commentary volume and mobile-first layouts.
 - **Offline-ready PWA** — installable manifest, service worker and local persistence.
+
+
+## Complete football audio system
+
+The web game now includes a centralized, data-driven audio architecture rather than direct sound calls:
+
+- semantic gameplay, UI, career, ceremony, online and replay events;
+- 14 independently controlled mixer buses and 13 smooth mix snapshots;
+- layered home/away crowd energy driven by tension, threat, momentum, importance, derby and capacity;
+- distinct Ethiopian club supporter profiles and major-stadium acoustic profiles;
+- spatial ball, player, goalkeeper, referee, frame and net events;
+- dynamic rain, wind and environmental layers;
+- Amharic, Afaan Oromo, English, Tigrinya and Somali commentary/PA foundations;
+- commentary priorities, cooldowns, usage history, cancellation and pronunciation records;
+- persistent volume, language, mono, dynamic-range, subtitle, caption and quality controls;
+- menu/UI audio, procedural music metadata, career and ceremony event coverage;
+- semantic multiplayer synchronization and duplicate suppression;
+- audio profiler, designer event lab, legal asset replacement pipeline and automated validation.
+
+The playable repository uses original procedural Web Audio synthesis and browser speech as legally safe fallbacks. Real chants, anthems, actor commentary and music remain clearly marked recording/licensing slots; no unauthorized online or broadcast audio is included. See `docs/audio/` and `data/audio/`.
 
 ## Run locally
 
@@ -54,6 +76,7 @@ npm run preview
 - Free camera vertical movement: `Q` / `R`
 - Replay: use the Replay control or score a goal
 - Match data: use the chart control inside the broadcast frame
+- Amharic commentary: use the radio control and independent `አማርኛ` volume slider
 - Mobile: on-screen directional and action controls
 
 ## Architecture
@@ -87,12 +110,13 @@ The club list is a structured research seed, not an assertion of official licens
 2. Phase 1 3D engine foundation — implemented.
 3. Phase 2 realism, atmosphere and replay systems — implemented.
 4. Phase 3 cinematic polish, audio and broadcast presentation — implemented.
-5. Licensed-quality GLTF athletes, professional mocap and compressed PBR asset packs.
-6. Advanced officiating, set pieces, goalkeepers, tactical AI and commentary.
-7. Real backend, accounts, cloud saves and live operations.
-8. Server-authoritative online multiplayer and spectator mode.
-9. Native PC/Android clients with shared services.
-10. Women’s football, youth national teams and additional divisions.
+5. Phase 4 human athlete upgrade, goalkeeper AI and Amharic commentary — implemented.
+6. Licensed-quality GLTF athletes, professional mocap and compressed PBR asset packs.
+7. Advanced officiating, set pieces and deeper tactical AI.
+8. Real backend, accounts, cloud saves and live operations.
+9. Server-authoritative online multiplayer and spectator mode.
+10. Native PC/Android clients with shared services.
+11. Women’s football, youth national teams and additional divisions.
 
 ## Legal
 
