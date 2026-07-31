@@ -1,0 +1,170 @@
++| Tactical shape | Six presets driving line height, width, compactness and pressing phase |
++| Officials | Referee and two assistant representations with flag state |
++| Networking | Sequence/tick snapshots for laws, score, ball, clock and restarts |
++| Professional assets | Nine licensed GLTF/mocap/KTX2 slots with procedural fallbacks |
+diff --git a/docs/phase5/QA_PLAN.md b/docs/phase5/QA_PLAN.md
+new file mode 100644
+index 0000000..f48b1cb
+--- /dev/null
++++ b/docs/phase5/QA_PLAN.md
+@@ -0,0 +1,16 @@
++# Phase 5 QA plan
++
++Validate with synchronized football footage and deterministic simulation captures.
++
++- Touchline exits produce throw-ins for the team that did not touch last.
++- Goal-line exits produce corners or goal kicks from last touch.
++- Offside is recorded at the pass and penalized only when the candidate becomes involved.
++- Advantage continues only while the fouled team retains a meaningful attack.
++- Cards vary with foul severity, denying-opportunity context and referee profile.
++- Penalty-area fouls create penalties at the correct mark.
++- VAR freezes the authoritative ball, announces checking and resolves only reviewable decisions.
++- Restarts place the ball, position both teams, respect countdowns and use selected routines.
++- Match clock stops during VAR and restart setup; added time reflects stoppages.
++- Tactical presets measurably alter line height, width, compactness and pressing.
++- Low-end graphics preserve laws, controls and network state while simplifying presentation.
++- Missing external assets always fall back safely without gameplay changes.
+diff --git a/docs/phase5/START.md b/docs/phase5/START.md
+index 6fc1d52..8653c9a 100644
+--- a/docs/phase5/START.md
++++ b/docs/phase5/START.md
+@@ -1,3 +1,3 @@
+ # Phase 5 — Competitive Match Intelligence
+ 
+-Phase 5 adds competition-grade restart logic, advanced officiating and VAR, tactical shape control, professional asset-ingestion foundations and deterministic match-state synchronization without replacing the functioning human, audio and living-world systems.
++This phase upgrades the playable match from a continuous physics sandbox into a law-aware competitive football simulation. It adds correct restarts, active-involvement offside, advantage, cards, penalties, VAR, added time, tactical team shape, referee presentation and an honest production asset-ingestion pipeline.
+diff --git a/package.json b/package.json
+index 27b5cdf..413c588 100644
+--- a/package.json
++++ b/package.json
+@@ -1,17 +1,18 @@
+ {
+   "name": "ethiopia-football-universe",
+   "private": true,
+-  "version": "1.7.0",
++  "version": "1.8.0",
+   "type": "module",
+   "scripts": {
+     "dev": "vite",
+-    "build": "npm run audio:validate && npm run human:validate && npm run world:validate && tsc -b && vite build",
++    "build": "npm run audio:validate && npm run human:validate && npm run world:validate && npm run phase5:validate && tsc -b && vite build",
+     "preview": "vite preview",
+     "lint": "eslint . --max-warnings 0",
+     "audio:validate": "node scripts/audio-validate.mjs",
+     "human:validate": "node scripts/human-validate.mjs",
+     "world:validate": "node scripts/world-validate.mjs",
+-    "test": "npm run lint && npm run build"
++    "test": "npm run lint && npm run build",
++    "phase5:validate": "node scripts/phase5-validate.mjs"
+   },
+   "dependencies": {
+     "@react-three/drei": "^10.7.3",
+diff --git a/public/sw.js b/public/sw.js
+index afae916..4f7f4a2 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,4 +1,4 @@
+-const CACHE = 'efu-v8-living-football-world';
++const CACHE = 'efu-v9-phase5-competitive-intelligence';
+ self.addEventListener('install', (event) => {
+   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['./', './index.html', './manifest.webmanifest', './icon.svg'])));
+   self.skipWaiting();
+diff --git a/scripts/phase5-validate.mjs b/scripts/phase5-validate.mjs
+new file mode 100644
+index 0000000..265ae6f
+--- /dev/null
++++ b/scripts/phase5-validate.mjs
+@@ -0,0 +1,22 @@
++import fs from 'node:fs'
++
++function read(path) { return JSON.parse(fs.readFileSync(path, 'utf8')) }
++function assert(condition, message) { if (!condition) throw new Error(`[phase5:validate] ${message}`) }
++
++const manifest = read('data/phase5/competitive-manifest.json')
++const assets = read('data/phase5/asset-pipeline.json')
++const laws = read('data/phase5/laws-and-var.json')
++
++assert(manifest.tacticalPresets >= 6, 'at least six tactical presets are required')
++assert(manifest.refereeProfiles >= 4, 'at least four referee profiles are required')
++assert(manifest.setPieceRoutines >= 14, 'set-piece catalog is incomplete')
++assert(new Set(manifest.restartTypes).size === 8, 'all eight restart types must be unique')
++assert(manifest.varReviewTypes.includes('goal') && manifest.varReviewTypes.includes('offside'), 'VAR review coverage is incomplete')
++assert(manifest.authoritativeDomains.includes('score') && manifest.authoritativeDomains.includes('restarts'), 'network authority policy is incomplete')
++assert(assets.slots >= 9, 'professional asset pipeline requires nine registered slots')
++assert(assets.tiers.includes('procedural') && assets.tiers.includes('cinematic'), 'asset tiers are incomplete')
++assert(assets.formats.includes('glb') && assets.formats.includes('ktx2'), 'compressed production formats are missing')
++assert(laws.offside.evaluateAtPass && laws.offside.penalizeOnInvolvement, 'offside law must separate position from active involvement')
++assert(laws.var.reviewable.length >= 5, 'VAR review categories are incomplete')
++
++console.log(`[phase5:validate] passed — ${manifest.tacticalPresets} tactics, ${manifest.refereeProfiles} referee profiles, ${manifest.setPieceRoutines} routines, ${assets.slots} asset slots, ${manifest.restartTypes.length} restart types`)
+diff --git a/src/components/MatchView.tsx b/src/components/MatchView.tsx
+index 561126b..90eb807 100644
+--- a/src/components/MatchView.tsx
++++ b/src/components/MatchView.tsx
+@@ -47,11 +47,18 @@ import { createMatchWorld } from '../world/engine'
+ import { WorldControlPanel } from '../world/WorldControlPanel'
+ import type { WorldSelection } from '../world/types'
+ import '../world/world.css'
++import { CompetitiveControlPanel } from '../phase5/CompetitiveControlPanel'
++import { CompetitiveOverlay } from '../phase5/CompetitiveOverlay'
++import { DEFAULT_COMPETITIVE_SETTINGS } from '../phase5/catalog'
++import { CompetitiveMatchDirector } from '../phase5/engine'
++import type { CompetitiveEvent, CompetitiveMatchState, CompetitiveSettings, ManualRestartRequest, RestartType } from '../phase5/types'
++import '../phase5/phase5.css'
+ 
+ const MATCH_MINUTES_PER_SECOND = 4.5
+ const REPLAY_DURATION_MS = 4400
+ const INTRO_DURATION_MS = 5800
+ const HALFTIME_DURATION_MS = 3400
++const INITIAL_COMPETITIVE_STATE = new CompetitiveMatchDirector(DEFAULT_COMPETITIVE_SETTINGS).snapshot()
+ 
+ const INITIAL_TELEMETRY: MatchTelemetry = {
+   homeTerritory: 50,
+@@ -130,6 +137,9 @@ export function MatchView() {
+   const [quality, setQuality] = useLocalStorage<QualityLevel>('efu-graphics-quality', 'balanced')
+   const [cameraShake, setCameraShake] = useLocalStorage('efu-camera-shake', true)
+   const [worldSelection, setWorldSelection] = useLocalStorage<WorldSelection>('efu-world-selection', DEFAULT_WORLD_SELECTION)
++  const [competitiveSettings, setCompetitiveSettings] = useLocalStorage<CompetitiveSettings>('efu-phase5-settings', DEFAULT_COMPETITIVE_SETTINGS)
++  const [competitiveState, setCompetitiveState] = useState<CompetitiveMatchState>(INITIAL_COMPETITIVE_STATE)
++  const [manualRestartRequest, setManualRestartRequest] = useState<ManualRestartRequest | null>(null)
+   const [showAudioSettings, setShowAudioSettings] = useState(false)
+   const [showAudioDebug, setShowAudioDebug] = useState(false)
+   const [sceneKey, setSceneKey] = useState(0)
+@@ -149,6 +159,8 @@ export function MatchView() {
+   const away = useMemo(() => premierClubs.find((item) => item.id === awayId) ?? premierClubs[1], [awayId])
+   const matchProgress = Math.min(1, score.time / 90)
+   const patchWorldSelection = useCallback((patch: Partial<WorldSelection>) => setWorldSelection((current) => ({ ...current, ...patch })), [setWorldSelection])
++  const patchCompetitiveSettings = useCallback((patch: Partial<CompetitiveSettings>) => setCompetitiveSettings((current) => ({ ...current, ...patch })), [setCompetitiveSettings])
++  const requestRestart = useCallback((type: RestartType | 'var-check', team: TeamSide) => setManualRestartRequest({ id: Date.now(), type, team }), [])
+   const world = useMemo(() => createMatchWorld({
+     selection: worldSelection,
+     weather,
+@@ -211,6 +223,8 @@ export function MatchView() {
+     setActions(INITIAL_ACTIONS)
+     setTelemetry(INITIAL_TELEMETRY)
+     setHumanTelemetry(INITIAL_HUMAN_TELEMETRY)
++    setCompetitiveState(INITIAL_COMPETITIVE_STATE)
++    setManualRestartRequest(null)
+     setMessage('Ready for broadcast')
+     setRunning(false)
+     audio.setCrowd({ intensity: 0.26, tension: 0.15, attackThreat: 0, momentum: 0 })
+@@ -327,12 +341,12 @@ export function MatchView() {
+   }, [clearPhaseTimers])
+ 
+   useEffect(() => {
+-    if (!running) return
++    if (!running || !['open-play', 'advantage'].includes(competitiveState.playState)) return
+     const interval = window.setInterval(() => {
+       setScore((current) => ({ ...current, time: Math.min(90, current.time + MATCH_MINUTES_PER_SECOND / 10) }))
+     }, 100)
+     return () => window.clearInterval(interval)
+-  }, [running])
++  }, [competitiveState.playState, running])
+ 
+   useEffect(() => {
+     if (score.time < 45 || score.time >= 90 || halftimeRef.current || presentationPhase !== 'live') return
+@@ -392,6 +406,20 @@ export function MatchView() {
+   }, [audio, weather, weatherIntensity])
+ 
+ 
++  const handleCompetitiveEvent = useCallback((event: CompetitiveEvent) => {
