@@ -73,10 +73,11 @@ jobs:
           PY
           bash /tmp/finalize-universal-controls.sh
 
-      - name: Repair recovered syntax and hook dependencies
+      - name: Repair recovered TypeScript and React contracts
         shell: bash
         run: |
           python <<'PY'
+          import re
           from pathlib import Path
 
           input_path = Path('src/input/useUniversalInput.ts')
@@ -90,6 +91,17 @@ jobs:
               "if (!gamepadHeld.has(action)) transientReleased.current.add(action)",
           )
           input_path.write_text(input_text)
+
+          bus_path = Path('src/input/bus.ts')
+          bus_text = bus_path.read_text()
+          bus_text, cleanup_count = re.subn(
+              r"return \(\) => ([A-Za-z_$][\w$]*)\.delete\(([^)\n]+)\)",
+              r"return () => { \1.delete(\2) }",
+              bus_text,
+          )
+          if cleanup_count == 0:
+              raise RuntimeError('No input-bus cleanup callbacks were repaired')
+          bus_path.write_text(bus_text)
 
           scene_path = Path('src/game/MatchScene.tsx')
           scene_text = scene_path.read_text()
