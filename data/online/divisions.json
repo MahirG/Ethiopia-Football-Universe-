@@ -1,0 +1,9 @@
+[
+  { "id": "walia", "name": "Walia Elite", "minimumRating": 1900, "promotionWins": 0, "color": "#f2c94c" },
+  { "id": "premier", "name": "Premier", "minimumRating": 1650, "promotionWins": 4, "color": "#dfe7ef" },
+  { "id": "championship", "name": "Championship", "minimumRating": 1450, "promotionWins": 4, "color": "#69c4ff" },
+  { "id": "gold", "name": "Gold", "minimumRating": 1250, "promotionWins": 3, "color": "#d6a73c" },
+  { "id": "silver", "name": "Silver", "minimumRating": 1050, "promotionWins": 3, "color": "#aeb8c5" },
+  { "id": "bronze", "name": "Bronze", "minimumRating": 850, "promotionWins": 3, "color": "#b87745" },
+  { "id": "grassroots", "name": "Grassroots", "minimumRating": 0, "promotionWins": 2, "color": "#60bd80" }
+]
