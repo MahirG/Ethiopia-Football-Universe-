@@ -29,10 +29,9 @@ jobs:
         with:
           node-version: 22
       - name: Reconstruct controls source and merge onto latest main
-        shell: bash
         run: |
           set -euo pipefail
-          BASE_COMMIT='91b5c55913f818c573814863cd93e1b5b250f24e'
+          BASE_COMMIT='1d345a003533962e2e14515211920707b4b0a74c'
           RAW_PATCH="$RUNNER_TEMP/universal-controls.raw.patch"
           PATCH="$RUNNER_TEMP/universal-controls.patch"
           SOURCE="$RUNNER_TEMP/control-source"
