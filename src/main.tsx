@@ -5,6 +5,9 @@ import './styles.css'
 import './audio/audio.css'
 import './input/controls.css'
 import { AudioProvider } from './audio/AudioProvider'
+import { installKickoffSafety } from './runtime/kickoffSafety'
+
+installKickoffSafety()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
