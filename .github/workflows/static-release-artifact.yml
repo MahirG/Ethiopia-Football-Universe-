@@ -1,4 +1,4 @@
-name: Diagnose GitHub Pages deployment
+name: Recover successful deployment URL
 
 on:
   pull_request:
@@ -7,50 +7,40 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  deployments: read
 
 jobs:
-  diagnose-pages:
+  recover-deployment:
     runs-on: ubuntu-latest
     steps:
-      - name: Read Pages workflow state
+      - name: Read deployment records for living world release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          gh api 'repos/MahirG/Ethiopia-Football-Universe-/actions/workflows/pages.yml/runs?branch=main&per_page=5' > /tmp/pages-runs.json
+          gh api 'repos/MahirG/Ethiopia-Football-Universe-/deployments?sha=ed7a861983cb60b3f82c2ac9e3d865b3bc9050c0&per_page=100' > /tmp/deployments.json
           python3 - <<'PY'
           import json
-          data=json.load(open('/tmp/pages-runs.json'))
-          for run in data.get('workflow_runs', []):
+          deployments=json.load(open('/tmp/deployments.json'))
+          print(f'DEPLOYMENT_COUNT={len(deployments)}')
+          for deployment in deployments:
               print(json.dumps({
-                  'id': run['id'],
-                  'status': run['status'],
-                  'conclusion': run['conclusion'],
-                  'head_sha': run['head_sha'],
-                  'event': run['event'],
-                  'url': run['html_url'],
-              }))
-          if data.get('workflow_runs'):
-              print(f"LATEST_RUN_ID={data['workflow_runs'][0]['id']}")
-          PY
-          RUN_ID=$(python3 - <<'PY'
-          import json
-          data=json.load(open('/tmp/pages-runs.json'))
-          print(data['workflow_runs'][0]['id'])
-          PY
-          )
-          gh api "repos/MahirG/Ethiopia-Football-Universe-/actions/runs/$RUN_ID/jobs" > /tmp/pages-jobs.json
-          python3 - <<'PY'
-          import json
-          data=json.load(open('/tmp/pages-jobs.json'))
-          for job in data.get('jobs', []):
-              print(json.dumps({
-                  'id': job['id'],
-                  'name': job['name'],
-                  'status': job['status'],
-                  'conclusion': job['conclusion'],
-                  'steps': [{s['name']: s['conclusion']} for s in job.get('steps', [])],
+                  'id': deployment['id'],
+                  'environment': deployment.get('environment'),
+                  'description': deployment.get('description'),
+                  'task': deployment.get('task'),
+                  'created_at': deployment.get('created_at'),
+                  'statuses_url': deployment.get('statuses_url'),
+                  'payload': deployment.get('payload'),
               }))
           PY
+          python3 - <<'PY' > /tmp/deployment-ids.txt
+          import json
+          for deployment in json.load(open('/tmp/deployments.json')):
+              print(deployment['id'])
+          PY
+          while read -r DEPLOYMENT_ID; do
+            echo "--- deployment $DEPLOYMENT_ID statuses ---"
+            gh api "repos/MahirG/Ethiopia-Football-Universe-/deployments/$DEPLOYMENT_ID/statuses?per_page=100" || true
+          done < /tmp/deployment-ids.txt
