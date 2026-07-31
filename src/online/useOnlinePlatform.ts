@@ -3,7 +3,7 @@ import { LIVE_EVENTS, LIVE_SEASON, ONLINE_MODES, createLocalLeaderboard, divisio
 import { createCloudEnvelope, createOnlineGateway } from './gateway'
 import type {
   GatewayStatus, LeaderboardEntry, MatchmakingTicket, OnlineIdentity, OnlineModeId,
-  OnlinePlatformSnapshot, OnlineRegionId, OnlineRoom, QueueSnapshot,
+  OnlinePlatformSnapshot, OnlineRoom, QueueSnapshot,
 } from './types'
 
 const EMPTY_QUEUE: QueueSnapshot = {
@@ -17,15 +17,16 @@ const EMPTY_QUEUE: QueueSnapshot = {
   message: 'Choose a mode to begin matchmaking.',
 }
 
-function ticketId(): string {
-  return `ticket-${crypto.randomUUID?.() ?? Date.now()}`
+function uniqueId(prefix: string): string {
+  const value = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `${prefix}-${value}`
 }
 
 function deviceId(): string {
   const key = 'efu-online-device-id'
   const existing = localStorage.getItem(key)
   if (existing) return existing
-  const created = `device-${crypto.randomUUID?.() ?? Date.now()}`
+  const created = uniqueId('device')
   localStorage.setItem(key, created)
   return created
 }
@@ -127,7 +128,7 @@ export function useOnlinePlatform() {
       return
     }
     const ticket: MatchmakingTicket = {
-      id: ticketId(),
+      id: uniqueId('ticket'),
       playerId: identity.id,
       mode,
       region: identity.region,
