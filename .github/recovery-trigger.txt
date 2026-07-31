@@ -1,2 +1,2 @@
 Trigger the controlled recovery workflow for pending football updates.
-Run 3: preserve Phase 5 and realistic players while integrating core and Phase 6.
+Run 4: integrate core, Phase 6 recovery marker, and validate the latest runtime.
