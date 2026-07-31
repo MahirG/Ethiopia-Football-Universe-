@@ -101,7 +101,7 @@ function Confetti({ token, active, quality }: { token: number; active: boolean; 
       data[index * 3 + 2] = (Math.random() - 0.5) * 28
     }
     return data
-  }, [count, token])
+  }, [count])
 
   useFrame((state, delta) => {
     if (!pointsRef.current || !active) return
@@ -124,15 +124,7 @@ function Confetti({ token, active, quality }: { token: number; active: boolean; 
   )
 }
 
-export function CinematicAtmosphere({
-  timeOfDay,
-  weather,
-  weatherIntensity,
-  quality,
-  matchProgress,
-  eventPulse,
-  presentationPhase,
-}: CinematicAtmosphereProps) {
+export function CinematicAtmosphere({ timeOfDay, weather, weatherIntensity, quality, matchProgress, eventPulse, presentationPhase }: CinematicAtmosphereProps) {
   const flareTexture = useMemo(createFlareTexture, [])
   const dynamicNight = timeOfDay === 'dynamic' && matchProgress > 0.74
   const night = timeOfDay === 'night' || dynamicNight
@@ -141,26 +133,13 @@ export function CinematicAtmosphere({
   const cloudCount = quality === 'ultra' ? 22 : quality === 'balanced' ? 14 : 8
   const celebration = eventPulse > 0 || presentationPhase === 'fulltime'
 
-  return (
-    <>
-      {(weather === 'rain' || weather === 'overcast') && <CloudBank count={cloudCount} intensity={cloudIntensity} />}
-      <Lightning active={weather === 'rain' && weatherIntensity > 0.62} intensity={weatherIntensity} />
-
-      {(golden || night) && quality !== 'performance' && (
-        <group position={golden ? [-48, 21, -30] : [0, 31, -42]}>
-          <sprite scale={golden ? [13, 13, 1] : [8, 8, 1]}>
-            <spriteMaterial map={flareTexture} color={golden ? '#ffb76c' : '#d9e8ff'} transparent opacity={golden ? 0.62 : 0.28} depthWrite={false} blending={THREE.AdditiveBlending} />
-          </sprite>
-          {night && Array.from({ length: 4 }, (_, index) => (
-            <mesh key={index} position={[-42 + index * 28, -8, index % 2 === 0 ? 20 : -20]} rotation={[0, 0, index % 2 === 0 ? -0.22 : 0.22]}>
-              <coneGeometry args={[5.5, 48, 24, 1, true]} />
-              <meshBasicMaterial color="#d9e6ff" transparent opacity={0.035} depthWrite={false} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
-            </mesh>
-          ))}
-        </group>
-      )}
-
-      <Confetti token={eventPulse} active={celebration} quality={quality} />
-    </>
-  )
+  return <>
+    {(weather === 'rain' || weather === 'overcast') && <CloudBank count={cloudCount} intensity={cloudIntensity} />}
+    <Lightning active={weather === 'rain' && weatherIntensity > 0.62} intensity={weatherIntensity} />
+    {(golden || night) && quality !== 'performance' && <group position={golden ? [-48, 21, -30] : [0, 31, -42]}>
+      <sprite scale={golden ? [13, 13, 1] : [8, 8, 1]}><spriteMaterial map={flareTexture} color={golden ? '#ffb76c' : '#d9e8ff'} transparent opacity={golden ? 0.62 : 0.28} depthWrite={false} blending={THREE.AdditiveBlending} /></sprite>
+      {night && Array.from({ length: 4 }, (_, index) => <mesh key={index} position={[-42 + index * 28, -8, index % 2 === 0 ? 20 : -20]} rotation={[0, 0, index % 2 === 0 ? -0.22 : 0.22]}><coneGeometry args={[5.5, 48, 24, 1, true]} /><meshBasicMaterial color="#d9e6ff" transparent opacity={0.035} depthWrite={false} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} /></mesh>)}
+    </group>}
+    <Confetti token={eventPulse} active={celebration} quality={quality} />
+  </>
 }
