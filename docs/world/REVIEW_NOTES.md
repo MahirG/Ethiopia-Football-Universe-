@@ -8,4 +8,4 @@ Validate with:
 - `npm run lint`
 - `npm run build`
 
-The production build runs the audio, human and world semantic validators before strict TypeScript and Vite bundling.
+The production build runs the audio, human and world semantic validators before strict TypeScript and Vite bundling. Extended weather states are deliberately adapted at the legacy audio boundary while remaining fully represented by the world simulation.
