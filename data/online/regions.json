@@ -1,0 +1,8 @@
+[
+  { "id": "auto", "name": "Automatic", "location": "Best available", "latencyTargetMs": 90, "enabled": true },
+  { "id": "addis", "name": "Addis Ababa", "location": "Ethiopia", "latencyTargetMs": 45, "enabled": false },
+  { "id": "east-africa", "name": "East Africa", "location": "Nairobi region", "latencyTargetMs": 80, "enabled": false },
+  { "id": "africa", "name": "Africa", "location": "Regional relay", "latencyTargetMs": 120, "enabled": false },
+  { "id": "middle-east", "name": "Middle East", "location": "Regional relay", "latencyTargetMs": 135, "enabled": false },
+  { "id": "europe", "name": "Europe", "location": "Regional relay", "latencyTargetMs": 155, "enabled": false }
+]
