@@ -121,14 +121,6 @@ jobs:
               base.write_bytes(content)
           PY
 
-          mapfile -t PATCHED_PATHS < <(MANIFEST="$MANIFEST" python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-          for item in json.loads(Path(os.environ['MANIFEST']).read_text()):
-              print(item['path'])
-          PY
-          )
           git -C "$SOURCE" add -A
           git -C "$SOURCE" apply --index --recount "$PATCH"
 
@@ -170,13 +162,99 @@ jobs:
             git merge-file -p "$ours_file" "$base_file" "$target" > "$path" || true
           done
 
+          python <<'PY'
+          from pathlib import Path
+          from typing import Callable
+
+          Lines = list[str]
+
+          def unique(lines: Lines) -> Lines:
+              seen: set[str] = set()
+              result: Lines = []
+              for line in lines:
+                  if line not in seen:
+                      seen.add(line)
+                      result.append(line)
+              return result
+
+          def renamed(lines: Lines) -> Lines:
+              return [
+                  line.replace('setShowControlSettings', 'setShowUniversalControlSettings')
+                      .replace('showControlSettings', 'showUniversalControlSettings')
+                  for line in lines
+              ]
+
+          def resolve(path: str, chooser: Callable[[Lines, Lines], Lines]) -> None:
+              file = Path(path)
+              lines = file.read_text().splitlines()
+              output: Lines = []
+              index = 0
+              conflicts = 0
+              while index < len(lines):
+                  if not lines[index].startswith('<<<<<<<'):
+                      output.append(lines[index])
+                      index += 1
+                      continue
+                  conflicts += 1
+                  index += 1
+                  ours: Lines = []
+                  while index < len(lines) and not lines[index].startswith('======='):
+                      ours.append(lines[index])
+                      index += 1
+                  if index >= len(lines):
+                      raise RuntimeError(f'Unterminated conflict in {path}')
+                  index += 1
+                  theirs: Lines = []
+                  while index < len(lines) and not lines[index].startswith('>>>>>>>'):
+                      theirs.append(lines[index])
+                      index += 1
+                  if index >= len(lines):
+                      raise RuntimeError(f'Unterminated conflict in {path}')
+                  index += 1
+                  output.extend(chooser(ours, theirs))
+              if conflicts:
+                  file.write_text('\n'.join(output) + '\n')
+                  print(f'Resolved {conflicts} controlled overlap(s) in {path}')
+
+          def match_view(ours: Lines, theirs: Lines) -> Lines:
+              o = '\n'.join(ours)
+              t = '\n'.join(theirs)
+              if 'showGameSettings' in o and 'showControlSettings' in t:
+                  return unique(ours + renamed(theirs))
+              if 'const currentDevice = useMemo' in o:
+                  return ours
+              if 'game-controls-overlay' in o and 'UniversalControlsOverlay' in t:
+                  return theirs
+              if 'setShowControlsSettings' in o and 'setShowControlSettings' in t:
+                  return unique(ours + renamed(theirs))
+              if 'GameSettingsPanel' in o and 'ControlSettingsPanel' in t:
+                  return unique(ours + renamed(theirs))
+              raise RuntimeError(f'Unexpected MatchView overlap:\nOURS:\n{o}\nTHEIRS:\n{t}')
+
+          def match_scene(ours: Lines, theirs: Lines) -> Lines:
+              o = '\n'.join(ours)
+              t = '\n'.join(theirs)
+              if 'useKeyboard' in o and 'useUniversalInput' in t:
+                  return unique(ours + theirs)
+              raise RuntimeError(f'Unexpected MatchScene overlap:\nOURS:\n{o}\nTHEIRS:\n{t}')
+
+          def player_avatar(ours: Lines, theirs: Lines) -> Lines:
+              o = '\n'.join(ours)
+              t = '\n'.join(theirs)
+              if 'KeyboardState' in o and 'UniversalInputState' in t:
+                  return unique(ours + theirs)
+              if 'keyboard,' in o and 'controls,' in t:
+                  return theirs
+              raise RuntimeError(f'Unexpected PlayerAvatar overlap:\nOURS:\n{o}\nTHEIRS:\n{t}')
+
+          resolve('src/components/MatchView.tsx', match_view)
+          resolve('src/game/MatchScene.tsx', match_scene)
+          resolve('src/game/PlayerAvatar.tsx', player_avatar)
+          PY
+
           if grep -RIl --exclude-dir=.git -E '^(<<<<<<<|=======|>>>>>>>)' README.md package.json src 2>/dev/null | tee "$RUNNER_TEMP/control-conflicts.txt" | grep -q .; then
-            echo 'Controls merge produced conflicts:'
+            echo 'Unresolved controls merge conflicts:'
             cat "$RUNNER_TEMP/control-conflicts.txt"
-            for file in $(cat "$RUNNER_TEMP/control-conflicts.txt"); do
-              echo "--- $file conflict regions ---"
-              grep -n -C 12 -E '^(<<<<<<<|=======|>>>>>>>)' "$file" || true
-            done
             exit 1
           fi
 
