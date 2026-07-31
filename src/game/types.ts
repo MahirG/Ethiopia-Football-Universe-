@@ -39,14 +39,14 @@ export interface MatchSceneProps {
   scoreHome: number
   scoreAway: number
   world: import('../world/types').MatchWorldState
-  competitiveSettings: import('../phase5/types').CompetitiveSettings
-  manualRestartRequest: import('../phase5/types').ManualRestartRequest | null
+  competitiveSettings?: import('../phase5/types').CompetitiveSettings
+  manualRestartRequest?: import('../phase5/types').ManualRestartRequest | null
   onGoal: (team: TeamSide) => void
   onEvent: (message: string) => void
   onAction: (action: MatchAction, team: TeamSide) => void
   onTelemetry: (telemetry: MatchTelemetry) => void
   onHumanTelemetry: (telemetry: import('../human/types').HumanTelemetry) => void
-  onCompetitiveState: (state: import('../phase5/types').CompetitiveMatchState) => void
-  onCompetitiveEvent: (event: import('../phase5/types').CompetitiveEvent) => void
+  onCompetitiveState?: (state: import('../phase5/types').CompetitiveMatchState) => void
+  onCompetitiveEvent?: (event: import('../phase5/types').CompetitiveEvent) => void
   onAudioEvent: (event: import('../audio/types').FootballAudioEvent, context?: Omit<import('../audio/types').AudioEventContext, 'event'>) => void
 }
