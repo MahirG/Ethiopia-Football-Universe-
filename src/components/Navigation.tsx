@@ -45,7 +45,7 @@ export function Navigation({ view, setView, language, open, close }: Props) {
           >
             <Icon size={18} strokeWidth={1.8} />
             <span>{t[label]}</span>
-            {(id === 'match' || id === 'online') && <span className="live-dot" title={id === 'match' ? 'Playable' : 'Connected platform'} />}
+            {id === 'match' && <span className="live-dot" title="Playable" />}
           </button>
         ))}
       </nav>
