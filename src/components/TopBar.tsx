@@ -36,6 +36,20 @@ export function TopBar({ language, setLanguage, setView, openNav }: Props) {
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [searchOpen, notificationsOpen])
 
+  useEffect(() => {
+    const openOnShortcut = (event: KeyboardEvent) => {
+      const element = event.target as HTMLElement | null
+      const editing = element?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(element?.tagName ?? '')
+      if (event.key === '/' && !editing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault()
+        setNotificationsOpen(false)
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', openOnShortcut)
+    return () => window.removeEventListener('keydown', openOnShortcut)
+  }, [])
+
   const showClub = (name: string) => {
     sessionStorage.setItem('efu-club-search', name)
     setSearchOpen(false)
