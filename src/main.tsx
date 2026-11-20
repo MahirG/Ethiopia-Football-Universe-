@@ -4,6 +4,7 @@ import App from './App'
 import './styles.css'
 import './audio/audio.css'
 import './input/controls.css'
+import './golden-era.css'
 import { AudioProvider } from './audio/AudioProvider'
 import { installKickoffSafety } from './runtime/kickoffSafety'
 
