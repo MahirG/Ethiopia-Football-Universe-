@@ -2,7 +2,7 @@ export function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="brand-mark" aria-label="Ethiopia Football Universe">
       <span className="brand-crest" aria-hidden="true">
-        <span className="brand-ball">●</span>
+        <span className="brand-ball">EFU</span>
       </span>
       {!compact && (
         <span className="brand-copy">
