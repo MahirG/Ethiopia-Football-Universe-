@@ -52,6 +52,7 @@ export function TopBar({ language, setLanguage, setView, openNav }: Props) {
 
   const showClub = (name: string) => {
     sessionStorage.setItem('efu-club-search', name)
+    window.dispatchEvent(new CustomEvent<string>('efu:club-selected', { detail: name }))
     setSearchOpen(false)
     setView('clubs')
   }
