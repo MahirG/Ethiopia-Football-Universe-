@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigation } from './components/Navigation'
+import { MobileDock } from './components/MobileDock'
 import { TopBar } from './components/TopBar'
 import { HomeView } from './components/HomeView'
 import { MatchView } from './components/MatchView'
@@ -52,9 +53,10 @@ export default function App() {
     <div className="app-shell">
       <Navigation view={view} setView={setView} language={language} open={navOpen} close={() => setNavOpen(false)} />
       {navOpen && <button className="nav-backdrop" aria-label="Close navigation" onClick={() => setNavOpen(false)} />}
-      <div className="app-main">
-        <TopBar language={language} setLanguage={setLanguage} openNav={() => setNavOpen(true)} />
-        <main className="content-area">{renderView()}</main>
+      <div className={`app-main view-${view}`}>
+        <TopBar language={language} setLanguage={setLanguage} setView={setView} openNav={() => setNavOpen(true)} />
+        <main id="main-content" className="content-area">{renderView()}</main>
+        {view !== 'match' && <MobileDock view={view} language={language} setView={setView} openMenu={() => setNavOpen(true)} />}
         <footer className="site-footer"><span>© 2026 Ethiopia Football Universe</span><span>Original prototype · License-ready data architecture · No affiliation implied</span></footer>
       </div>
     </div>

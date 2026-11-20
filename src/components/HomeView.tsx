@@ -3,6 +3,8 @@ import { featurePillars, labels, modes, roadmap } from '../data/content'
 import { premierClubs } from '../data/clubs'
 import type { Language, View } from '../types'
 
+const modeRoutes: View[] = ['match', 'career', 'career', 'career', 'competitions', 'community', 'online']
+
 interface Props {
   language: Language
   setView: (view: View) => void
@@ -37,7 +39,7 @@ export function HomeView({ language, setView }: Props) {
             <span className="pitch-box left" />
             <span className="pitch-box right" />
             {[12, 25, 38, 51, 64, 77, 90].map((left, index) => <i key={left} className={`player-dot ${index % 2 ? 'gold' : ''}`} style={{ left: `${left}%`, top: `${24 + (index * 13) % 52}%` }} />)}
-            <div className="hero-score-card"><span>LIVE PROTOTYPE</span><strong>ETH <b>2</b> — <b>1</b> WORLD</strong><small>78:24 · Addis Ababa</small></div>
+            <div className="hero-score-card" aria-label="Illustrative simulated match score"><span>ILLUSTRATIVE MATCH</span><strong>HOME <b>2</b> — <b>1</b> AWAY</strong><small>Match preview · Addis Ababa</small></div>
           </div>
         </div>
       </section>
@@ -49,9 +51,9 @@ export function HomeView({ language, setView }: Props) {
         </div>
         <div className="mode-grid">
           {modes.map((mode, index) => (
-            <button className="mode-card" key={mode.title} onClick={() => setView(index === 0 ? 'match' : index < 4 ? 'career' : 'competitions')}>
+            <button className="mode-card" key={mode.title} onClick={() => setView(modeRoutes[index] ?? 'home')}>
               <span className="mode-number">0{index + 1}</span>
-              <div className="mode-icon">{[<Gamepad2 />, <Globe2 />, <ShieldCheck />, <Sparkles />, <Trophy />, <UsersRound />][index]}</div>
+              <div className="mode-icon">{[<Gamepad2 />, <Globe2 />, <ShieldCheck />, <Sparkles />, <Trophy />, <UsersRound />, <Globe2 />][index]}</div>
               <strong>{mode.title}</strong>
               <p>{mode.detail}</p>
               <ArrowRight size={18} />

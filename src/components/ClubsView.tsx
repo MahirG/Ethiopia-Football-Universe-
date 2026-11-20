@@ -1,12 +1,25 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Building2, ChevronRight, Filter, MapPin, Search, Shield, Star, Users } from 'lucide-react'
 import { clubs } from '../data/clubs'
 import type { Club } from '../types'
 
 export function ClubsView() {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() => sessionStorage.getItem('efu-club-search') ?? '')
   const [tier, setTier] = useState('All')
-  const [selected, setSelected] = useState<Club>(clubs[0])
+  const [selected, setSelected] = useState<Club>(() => clubs.find((club) => club.name === sessionStorage.getItem('efu-club-search')) ?? clubs[0])
+  useEffect(() => {
+    sessionStorage.removeItem('efu-club-search')
+    const onClubSelected = (event: Event) => {
+      const name = (event as CustomEvent<string>).detail
+      const match = clubs.find((club) => club.name === name)
+      if (match) {
+        setSelected(match)
+        setQuery(name)
+      }
+    }
+    window.addEventListener('efu:club-selected', onClubSelected)
+    return () => window.removeEventListener('efu:club-selected', onClubSelected)
+  }, [])
   const tiers = ['All', 'Premier League', 'Higher League', 'Historic / Community']
   const filtered = useMemo(() => clubs.filter((club) => {
     const matchesTier = tier === 'All' || club.tier === tier

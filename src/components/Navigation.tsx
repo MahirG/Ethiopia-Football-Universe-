@@ -45,19 +45,19 @@ export function Navigation({ view, setView, language, open, close }: Props) {
           >
             <Icon size={18} strokeWidth={1.8} />
             <span>{t[label]}</span>
-            {(id === 'match' || id === 'online') && <span className="live-dot" title={id === 'match' ? 'Playable' : 'Connected platform'} />}
+            {id === 'match' && <span className="live-dot" title="Playable" />}
           </button>
         ))}
       </nav>
       <div className="sidebar-card">
         <div className="sidebar-card-icon"><Swords size={18} /></div>
-        <strong>Walia Season 01</strong>
-        <span>Build your legacy</span>
-        <div className="progress"><i style={{ width: '36%' }} /></div>
+        <strong>THE GOLDEN ERA</strong>
+        <span>Ethiopian Football Universe</span>
+        <span>11v11 football · Four languages</span>
       </div>
       <div className="sidebar-foot">
         <BookOpen size={15} />
-        <span>Connected platform v1.9</span>
+        <span>EFU · Golden Era Preview</span>
         <LayoutGrid size={15} />
       </div>
     </aside>
