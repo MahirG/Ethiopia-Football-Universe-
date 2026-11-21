@@ -9,6 +9,7 @@ import './input/mobile-football.css'
 import './diagnostics/device-lab.css'
 import './runtime/match-recovery.css'
 import './ui/matchday-mobile-v2.css'
+import './ui/football-gameplay-hud.css'
 import { AudioProvider } from './audio/AudioProvider'
 import { installKickoffSafety } from './runtime/kickoffSafety'
 
