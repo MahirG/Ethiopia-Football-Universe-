@@ -179,18 +179,24 @@ export function CameraRig({ mode, replayToken, replayActive, quality, presentati
     let activeMode: CameraMode = mode
     if (mode === 'auto') {
       const playerDistance = player.distanceTo(ballPosition.current)
-      activeMode = ballPosition.current.y > 3.2 || ballSpeed > 17 ? 'ball' : playerDistance < 7.5 ? 'follow' : 'broadcast'
+      // The old automatic camera zoomed directly into faces on portrait
+      // phones, clipping heads and limbs. Keep small-screen matches framed
+      // as an actual broadcast; users can still explicitly select Follow.
+      const compactView = state.size.width < 720
+      activeMode = compactView
+        ? (ballPosition.current.y > 3.5 && ballSpeed > 17 ? 'ball' : 'broadcast')
+        : ballPosition.current.y > 3.2 || ballSpeed > 17 ? 'ball' : playerDistance < 7.5 ? 'follow' : 'broadcast'
     }
     if (activeMode === 'follow') {
       const attackDirection = ballPosition.current.x >= player.x ? 1 : -1
-      desiredPosition.current.set(player.x - attackDirection * 8.8, player.y + 4.1, player.z + 1.8)
-      desiredTarget.current.set(player.x + attackDirection * 6.8, 1.05, player.z)
+      desiredPosition.current.set(player.x - attackDirection * 14.5, player.y + 7.0, player.z + 7.2)
+      desiredTarget.current.set(player.x + attackDirection * 4.2, 1.1, player.z)
     } else if (activeMode === 'ball') {
       if (ballVelocity.current.lengthSq() > 0.1) velocityDirection.current.copy(ballVelocity.current).normalize()
       else velocityDirection.current.set(1, 0, 0)
-      desiredPosition.current.copy(ballPosition.current).addScaledVector(velocityDirection.current, -8.2)
-      desiredPosition.current.y = Math.max(3.4, ballPosition.current.y + 3.3)
-      desiredPosition.current.z += 2.4
+      desiredPosition.current.copy(ballPosition.current).addScaledVector(velocityDirection.current, -14.0)
+      desiredPosition.current.y = Math.max(6.4, ballPosition.current.y + 5.6)
+      desiredPosition.current.z += 5.3
       desiredTarget.current.copy(predictedBall.current).add(targetOffset.current.set(1.4, 0.3, 0))
     } else {
       const travel = THREE.MathUtils.clamp(predictedBall.current.x, -43, 43)
@@ -210,7 +216,7 @@ export function CameraRig({ mode, replayToken, replayActive, quality, presentati
     smoothedTarget.current.lerp(desiredTarget.current, 1 - Math.exp(-5.4 * delta))
     camera.lookAt(smoothedTarget.current)
     const lateMatchTension = matchProgress > 0.82 ? 2.5 : 0
-    const targetFov = activeMode === 'broadcast' ? 43 + Math.min(12, ballPosition.current.y * 1.65) + Math.min(4, ballSpeed * 0.09) - lateMatchTension : activeMode === 'follow' ? 53 + Math.min(6, ballSpeed * 0.12) : 47 + Math.min(8, ballPosition.current.y)
+    const targetFov = activeMode === 'broadcast' ? 43 + Math.min(12, ballPosition.current.y * 1.65) + Math.min(4, ballSpeed * 0.09) - lateMatchTension : activeMode === 'follow' ? 48 + Math.min(5, ballSpeed * 0.10) : 45 + Math.min(7, ballPosition.current.y)
     perspective.fov = THREE.MathUtils.damp(perspective.fov, targetFov, 4.2, delta)
     perspective.updateProjectionMatrix()
   })
