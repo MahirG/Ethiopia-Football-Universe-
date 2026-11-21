@@ -23,15 +23,9 @@ export class MatchSceneErrorBoundary extends Component<SceneBoundaryProps, Scene
   }
 
   render() {
-    if (this.state.failed) {
-      return (
-        <div className="match-renderer-fallback" role="alert">
-          <strong>Match graphics were interrupted</strong>
-          <p>Gameplay is paused. Your displayed score and match clock are preserved, but the physical player and ball positions will restart.</p>
-          <p>Use the recovery controls below to restart safely.</p>
-        </div>
-      )
-    }
+    // The parent MatchView owns the single accessible recovery overlay. Avoid
+    // stacking duplicate panels above a lost canvas on a small phone screen.
+    if (this.state.failed) return null
     return this.props.children
   }
 }
