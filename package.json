@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run input:validate && npm run core:validate && npm run audio:validate && npm run human:validate && npm run world:validate && npm run phase5:validate && npm run phase6:validate && npm run realism:validate && npm run rig:validate && npm run motion:validate && npm run mobile:validate && npm run device:validate && tsc -b && vite build",
+    "build": "npm run input:validate && npm run core:validate && npm run audio:validate && npm run human:validate && npm run world:validate && npm run phase5:validate && npm run phase6:validate && npm run realism:validate && npm run rig:validate && npm run motion:validate && npm run mobile:validate && npm run device:validate && npm run stability:validate && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 0",
     "audio:validate": "node scripts/audio-validate.mjs",
@@ -20,7 +20,8 @@
     "rig:validate": "node scripts/phase2-rig-validate.mjs",
     "motion:validate": "node scripts/phase3-motion-validate.mjs",
     "mobile:validate": "node scripts/mobile-controls-validate.mjs",
-    "device:validate": "node scripts/device-lab-validate.mjs"
+    "device:validate": "node scripts/device-lab-validate.mjs",
+    "stability:validate": "node scripts/match-stability-validate.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.3",
