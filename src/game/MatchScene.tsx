@@ -300,7 +300,7 @@ export function MatchScene(props: MatchSceneProps) {
 
   return <div className="phase5-match-stage human-simulation-stage">
     <CompetitiveOverlay state={competitiveState} />
-    <Canvas className="match-canvas" shadows dpr={preset.dpr} camera={{ position: [0, 26, 38], fov: 45, near: 0.1, far: 280 }} gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: time === 'night' ? 0.86 : 1.04 }}>
+    <Canvas className="match-canvas" shadows={props.quality !== 'performance'} dpr={preset.dpr} camera={{ position: [0, 26, 38], fov: 45, near: 0.1, far: 280 }} gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: time === 'night' ? 0.86 : 1.04 }}>
       <WebGLContextGuard onLost={props.onRendererContextLost} onRestored={props.onRendererContextRestored} />
       <MatchPerformanceProbe active={Boolean(props.performanceActive)} running={props.running && props.presentationPhase === 'live'} onSnapshot={props.onPerformanceSample} />
       <color attach="background" args={[weatherBackground]} />
@@ -308,7 +308,7 @@ export function MatchScene(props: MatchSceneProps) {
       <Sky distance={230} sunPosition={light.sky} turbidity={props.weather === 'overcast' || props.weather === 'fog' || props.weather === 'dust' ? 18 : 8} rayleigh={props.weather === 'overcast' || props.weather === 'fog' ? 0.6 : 1.4} mieCoefficient={props.weather === 'rain' || props.weather === 'storm' || props.weather === 'fog' ? 0.018 : 0.006} />
       {preset.softShadows && <SoftShadows size={18} samples={14} focus={0.42} />}
       <hemisphereLight args={[light.hemi, '#163222', light.ambient]} />
-      <directionalLight position={light.pos} color={light.sun} intensity={light.power} castShadow shadow-mapSize-width={preset.shadowMapSize} shadow-mapSize-height={preset.shadowMapSize} shadow-camera-left={-66} shadow-camera-right={66} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-far={125} shadow-bias={-0.00016} />
+      <directionalLight position={light.pos} color={light.sun} intensity={light.power} castShadow={props.quality !== 'performance'} shadow-mapSize-width={preset.shadowMapSize} shadow-mapSize-height={preset.shadowMapSize} shadow-camera-left={-66} shadow-camera-right={66} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-far={125} shadow-bias={-0.00016} />
       <Suspense fallback={null}>
         <Physics gravity={[0, -9.81, 0]} paused={!props.running} timeStep={1 / 60} interpolate>
           <Pitch weather={props.weather} quality={props.quality} eventPulse={props.replayToken} world={props.world} />
