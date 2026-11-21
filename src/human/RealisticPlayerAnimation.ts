@@ -85,17 +85,18 @@ export function useRealisticPlayerAnimation(options: Options) {
     if (refs.highLod.current) refs.highLod.current.visible = false
     if (refs.fieldLod.current) refs.fieldLod.current.visible = lod === 'field'
     if (refs.lowLod.current) refs.lowLod.current.visible = lod === 'distance'
+    const heroVisible = Boolean(refs.highLod.current?.visible)
 
     const budget = ATHLETE_LOD_BUDGETS[quality]
-    const closeDetail = lod === 'hero' && distance < budget.faceDistance
+    const closeDetail = heroVisible && distance < budget.faceDistance
     if (refs.faceDetail.current) refs.faceDetail.current.visible = closeDetail
-    if (refs.hairDetail.current) refs.hairDetail.current.visible = lod === 'hero' && distance < budget.faceDistance * 1.5
+    if (refs.hairDetail.current) refs.hairDetail.current.visible = heroVisible && distance < budget.faceDistance * 1.5
     if (refs.leftHandDetail.current) refs.leftHandDetail.current.visible = closeDetail
     if (refs.rightHandDetail.current) refs.rightHandDetail.current.visible = closeDetail
-    if (refs.leftBootDetail.current) refs.leftBootDetail.current.visible = lod === 'hero'
-    if (refs.rightBootDetail.current) refs.rightBootDetail.current.visible = lod === 'hero'
-    const updateFace = lod === 'hero' && faceFrame.current++ % budget.faceUpdateFrames === 0
-    faceDelta.current = lod === 'hero' ? faceDelta.current + delta : 0
+    if (refs.leftBootDetail.current) refs.leftBootDetail.current.visible = heroVisible
+    if (refs.rightBootDetail.current) refs.rightBootDetail.current.visible = heroVisible
+    const updateFace = heroVisible && faceFrame.current++ % budget.faceUpdateFrames === 0
+    faceDelta.current = heroVisible ? faceDelta.current + delta : 0
 
     const leftPlant = footPlantOffset(visual.gaitPhase, -1, visual.strideLength, speed, visual.plantBias)
     const rightPlant = footPlantOffset(visual.gaitPhase, 1, visual.strideLength, speed, visual.plantBias)
@@ -148,7 +149,7 @@ export function useRealisticPlayerAnimation(options: Options) {
       scanTarget.current.copy(runtime.position).add(new THREE.Vector3(Math.cos(runtime.facing) * 5, 1.2, Math.sin(runtime.facing) * 5 + side))
       runtime.scanTarget.copy(scanTarget.current)
     }
-    if (lod === 'hero' && refs.head.current) {
+    if (heroVisible && refs.head.current) {
       const target = Math.atan2(runtime.scanTarget.z - runtime.position.z, runtime.scanTarget.x - runtime.position.x)
       const offset = Math.atan2(Math.sin(target - runtime.facing), Math.cos(target - runtime.facing))
       refs.head.current.rotation.y = THREE.MathUtils.damp(refs.head.current.rotation.y, THREE.MathUtils.clamp(offset, -0.72, 0.72), 6.5, delta)
@@ -156,7 +157,7 @@ export function useRealisticPlayerAnimation(options: Options) {
     if (updateFace && refs.eyes.current) refs.eyes.current.rotation.y = refs.head.current ? refs.head.current.rotation.y * 0.32 : 0
     if (updateFace && refs.mouth.current) refs.mouth.current.scale.y = THREE.MathUtils.damp(refs.mouth.current.scale.y, Math.max(0.12, runtime.physical.breathing * 0.55 + runtime.emotion.joy * 0.3), 5, delta)
 
-    if (lod === 'hero') {
+    if (heroVisible) {
       const wetness = Math.max(runtime.physical.sweat, runtime.physical.wetness)
       for (const material of skinMaterials.current) {
         material.roughness = THREE.MathUtils.damp(material.roughness, THREE.MathUtils.lerp(0.56, 0.28, wetness), 1.5, delta)
