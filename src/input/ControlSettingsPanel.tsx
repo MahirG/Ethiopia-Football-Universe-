@@ -41,14 +41,15 @@ export function ControlSettingsPanel({ open, onClose }: ControlSettingsPanelProp
           <label>Touch size <b>{Math.round(settings.touchScale * 100)}%</b><input type="range" min="0.78" max="1.25" step="0.01" value={settings.touchScale} onChange={(event) => patch({ touchScale: Number(event.target.value) })} /></label>
           <label>Touch opacity <b>{Math.round(settings.touchOpacity * 100)}%</b><input type="range" min="0.35" max="1" step="0.01" value={settings.touchOpacity} onChange={(event) => patch({ touchOpacity: Number(event.target.value) })} /></label>
           <label>Touch sensitivity <b>{settings.touchSensitivity.toFixed(2)}×</b><input type="range" min="0.65" max="1.35" step="0.05" value={settings.touchSensitivity} onChange={(event) => patch({ touchSensitivity: Number(event.target.value) })} /></label>
+          <label>Touch dead zone <b>{Math.round(settings.joystickDeadZone * 100)}%</b><input type="range" min="0" max="0.25" step="0.01" value={settings.joystickDeadZone} onChange={(event) => patch({ joystickDeadZone: Number(event.target.value) })} /></label>
           <label>Gamepad dead zone <b>{Math.round(settings.gamepadDeadZone * 100)}%</b><input type="range" min="0.05" max="0.35" step="0.01" value={settings.gamepadDeadZone} onChange={(event) => patch({ gamepadDeadZone: Number(event.target.value) })} /></label>
           <label>Gamepad sensitivity <b>{settings.gamepadSensitivity.toFixed(2)}×</b><input type="range" min="0.7" max="1.3" step="0.05" value={settings.gamepadSensitivity} onChange={(event) => patch({ gamepadSensitivity: Number(event.target.value) })} /></label>
         </div>
 
         <div className="control-map-reference">
           <div><strong>Keyboard</strong><span>WASD move · Shift sprint · E pass · T through · Q lob · Space/LMB shoot · C shield · F tackle · V slide · R switch · X cancel</span></div>
-          <div><strong>Gamepad</strong><span>Left stick move · RT sprint · LT shield · A pass · X through · Y lob · B shoot · LB switch · RB controlled sprint</span></div>
-          <div><strong>Touch</strong><span>Analog joystick · independent pass/through/lob/shoot · sprint/shield/skill · tackle and manual switch</span></div>
+          <div><strong>Gamepad</strong><span>Standard Gamepad API: left stick move · RT sprint · LT shield · A pass · X through · Y lob · B shoot · LB switch · RB controlled sprint. Bluetooth/USB availability depends on browser and device.</span></div>
+          <div><strong>Touch</strong><span>Multitouch joystick (fixed or floating) · independent shot/pass/sprint/defence buttons · left-handed layout · adjustable dead zone and button size</span></div>
         </div>
 
         <footer><button className="secondary-button" type="button" onClick={() => setSettings(resetControlSettings())}><RotateCcw size={16} /> Reset controls</button><button className="primary-button" type="button" onClick={onClose}>Done</button></footer>
