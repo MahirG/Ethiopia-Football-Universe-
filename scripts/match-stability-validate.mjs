@@ -69,4 +69,42 @@ const report = JSON.parse(local.get('efu-last-client-crash'))
 assert.equal(report.source, 'match-renderer')
 assert.ok(report.message.includes('simulated renderer fault'))
 
+// Service worker must not silently serve HTML as a failed JavaScript bundle.
+const sw = read('public/sw.js')
+assert.ok(sw.includes('MAX_ASSET_ENTRIES = 60') && sw.includes('MAX_ASSET_BYTES = 2 * 1024 * 1024'),
+  'offline asset storage must be bounded on Android')
+assert.ok(sw.includes("url.origin !== self.location.origin") &&
+          sw.includes("url.pathname.includes('/api/')"),
+  'never cache cross-origin or API responses')
+assert.ok(!/^\s*self\.skipWaiting\(/m.test(sw) && !/^\s*self\.clients\.claim\(/m.test(sw),
+  'new service worker must not take over a match in progress')
+const listeners = {}
+const cachedNavigation = { kind: 'offline-shell' }
+runInNewContext(sw, {
+  self: { addEventListener: (name, fn) => { listeners[name] = fn }, location: { origin: 'https://efu.example' } },
+  caches: { match: async (request) => request === './index.html' ? cachedNavigation : null },
+  fetch: async () => { throw new Error('simulated offline') },
+  Response: { error: () => ({ kind: 'network-failed' }) },
+  URL,
+}, { filename: 'public/sw.js' })
+function dispatch(url, mode = 'cors') {
+  let promised
+  listeners.fetch({
+    request: { method: 'GET', mode, url },
+    respondWith: (promise) => { promised = promise },
+    waitUntil: () => {},
+  })
+  return promised
+}
+assert.equal(dispatch('https://thirdparty.example/track.js'), undefined,
+  'third-party assets must bypass local caching')
+assert.equal(dispatch('https://efu.example/api/health'), undefined,
+  'API calls must bypass offline cache')
+assert.equal(dispatch('https://efu.example/private.json?token=secret'), undefined,
+  'signed requests must bypass cache')
+assert.deepEqual(await dispatch('https://efu.example/match', 'navigate'), cachedNavigation,
+  'offline page navigations should use the cached app shell')
+await assert.rejects(dispatch('https://efu.example/assets/app.js'),
+  /simulated offline/, 'failed JS bundle must NOT receive HTML fallback')
+
 console.log('EFU stability checks passed: WebGL recovery, safe pause, GPU upload budget, input release, and material lifecycle.')
