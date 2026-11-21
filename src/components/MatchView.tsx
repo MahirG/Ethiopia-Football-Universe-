@@ -192,13 +192,16 @@ export function MatchView() {
   const home = useMemo(() => premierClubs.find((item) => item.id === homeId) ?? premierClubs[0], [homeId])
   const away = useMemo(() => premierClubs.find((item) => item.id === awayId) ?? premierClubs[1], [awayId])
   const matchProgress = Math.min(1, score.time / 90)
+  // Keep the on-screen match clock at its normal cadence while rebuilding the
+  // costly stadium/world simulation at five-minute display intervals.
+  const worldMinute = Math.min(90, Math.floor(score.time / 5) * 5)
   const patchWorldSelection = useCallback((patch: Partial<WorldSelection>) => setWorldSelection((current) => ({ ...current, ...patch })), [setWorldSelection])
   const world = useMemo(() => createMatchWorld({
     selection: worldSelection,
     weather,
     weatherIntensity,
     timeOfDay,
-    matchMinute: score.time,
+    matchMinute: worldMinute,
     scoreHome: score.home,
     scoreAway: score.away,
     presentationPhase,
@@ -214,7 +217,7 @@ export function MatchView() {
     slides: humanTelemetry.footSlipEvents,
     eventPulse: replayToken > 0 ? 1 : 0,
     lastEvent: message,
-  }), [humanTelemetry.footSlipEvents, message, presentationPhase, quality, replayToken, score.away, score.home, score.time, timeOfDay, weather, weatherIntensity, worldSelection])
+  }), [humanTelemetry.footSlipEvents, message, presentationPhase, quality, replayToken, score.away, score.home, worldMinute, timeOfDay, weather, weatherIntensity, worldSelection])
   const { settings: audioSettings, patch: patchAudioSettings, reset: resetAudioSettings } = useGlobalAudio()
   const audio = useFootballAudio(audioSettings, {
     homeId: home.id,
