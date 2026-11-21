@@ -29,15 +29,16 @@ export function HumanPlayerVisual({ profile, runtime, motion, kitColor, secondar
   const socks = goalkeeper ? '#232b2f' : home ? '#f0ce32' : '#f2f0e8'
   const trim = home && !goalkeeper ? '#efcf31' : secondaryColor
   const accent = home && !goalkeeper ? '#c91f2e' : kitColor
-  const frontTexture = useMemo(() => createShirtTexture(profile.number, true, home && !goalkeeper), [profile.number, home, goalkeeper])
-  const backTexture = useMemo(() => createShirtTexture(profile.number, false, home && !goalkeeper), [profile.number, home, goalkeeper])
+  const shirtResolution = quality === 'ultra' ? 512 : quality === 'balanced' ? 256 : 128
+  const frontTexture = useMemo(() => createShirtTexture(profile.number, true, home && !goalkeeper, shirtResolution), [profile.number, home, goalkeeper, shirtResolution])
+  const backTexture = useMemo(() => createShirtTexture(profile.number, false, home && !goalkeeper, shirtResolution), [profile.number, home, goalkeeper, shirtResolution])
 
   useEffect(() => {
-    const anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy())
+    const anisotropy = Math.min(quality === 'ultra' ? 8 : quality === 'balanced' ? 4 : 2, gl.capabilities.getMaxAnisotropy())
     if (frontTexture) frontTexture.anisotropy = anisotropy
     if (backTexture) backTexture.anisotropy = anisotropy
     return () => { frontTexture?.dispose(); backTexture?.dispose() }
-  }, [frontTexture, backTexture, gl])
+  }, [frontTexture, backTexture, gl, quality])
 
   const rootRef = useRef<THREE.Group>(null)
   const highLodRef = useRef<THREE.Group>(null)
