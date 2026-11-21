@@ -304,6 +304,18 @@ export function createRiggedAthlete(
   mesh.bind(skeleton)
   mesh.normalizeSkinWeights()
 
+  // Neutral-pose geometry previously spanned ~2.2m for a simulated 1.82m
+  // player. Scale the complete rig to the actual anatomical profile, then
+  // align the boot sole with the existing Rapier collider's local ground.
+  geometry.computeBoundingBox()
+  const bounds = geometry.boundingBox!
+  const unscaledHeight = Math.max(0.1, bounds.max.y - bounds.min.y)
+  const modelScale = THREE.MathUtils.clamp(body.height / unscaledHeight, 0.65, 1.05)
+  mesh.scale.setScalar(modelScale)
+  // The PlayerAvatar rigid body is centered at PLAYER_HEIGHT / 2 (0.91m).
+  mesh.position.y = -0.91 - bounds.min.y * modelScale
+  mesh.updateMatrixWorld(true)
+
   return {
     mesh,
     bones,
