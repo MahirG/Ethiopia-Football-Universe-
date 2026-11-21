@@ -17,13 +17,14 @@ export function PlayerPbr({ color, refs, skin = false }: { color: string; refs: 
   />
 }
 
-export function createShirtTexture(number: number, front: boolean, ethiopiaHome: boolean) {
+export function createShirtTexture(number: number, front: boolean, ethiopiaHome: boolean, resolution: 128 | 256 | 512 = 256) {
   if (typeof document === 'undefined') return null
   const canvas = document.createElement('canvas')
-  canvas.width = 512
-  canvas.height = 512
+  canvas.width = resolution
+  canvas.height = resolution
   const context = canvas.getContext('2d')
   if (!context) return null
+  context.scale(resolution / 512, resolution / 512)
 
   if (front && ethiopiaHome) {
     context.fillStyle = '#efcf31'
@@ -63,7 +64,8 @@ export function createShirtTexture(number: number, front: boolean, ethiopiaHome:
 
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
-  texture.minFilter = THREE.LinearMipmapLinearFilter
+  texture.generateMipmaps = resolution > 128
+  texture.minFilter = resolution > 128 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter
   return texture
 }
 
