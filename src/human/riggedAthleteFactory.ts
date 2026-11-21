@@ -174,6 +174,19 @@ export function createRiggedAthlete(
       [armWidth * 0.83, body.lowerArmLength * 0.91, armWidth * 0.81])
     ellipsoid(2, lowerArm, [0, -body.lowerArmLength * 0.96, 0],
       [armWidth * 0.62, 0.068 * body.handScale, armWidth * 0.48])
+    if (profile.role === 'goalkeeper') {
+      // Separate bright padded keeper gloves distinguish the keeper in a
+      // full-field match as well as a close-up: approved concept no. 1.
+      ellipsoid(11, lowerArm, [0, -body.lowerArmLength * 0.965, 0.015],
+        [armWidth * 1.12, 0.092 * body.handScale, armWidth * 0.83], 10)
+      ellipsoid(6, lowerArm, [0, -body.lowerArmLength * 0.83, 0],
+        [armWidth * 1.0, 0.019, armWidth * 1.02], 10)
+    }
+    if (profile.team === 'home' && profile.number === 4 && side < 0) {
+      // Distinct captain armband on the upper arm from the concept reference.
+      ellipsoid(6, upperArm, [0, -body.upperArmLength * 0.20, 0],
+        [armWidth * 1.24, 0.038, armWidth * 1.21], 10)
+    }
     taper(1, thigh, [0, -body.upperLegLength * 0.22, 0],
       [thighWidth * 1.14, body.upperLegLength * 0.47, thighWidth * 1.03])
     taper(2, thigh, [0, -body.upperLegLength * 0.69, 0],
@@ -317,6 +330,7 @@ export function createRiggedAthlete(
     new THREE.MeshBasicMaterial({ map: frontNumber ?? undefined, transparent: true, alphaTest: 0.08, depthWrite: false, toneMapped: false }),
     new THREE.MeshBasicMaterial({ map: backNumber ?? undefined, transparent: true, alphaTest: 0.08, depthWrite: false, toneMapped: false }),
     new THREE.MeshStandardMaterial({ color: '#633d36', roughness: 0.82 }), // lips
+    new THREE.MeshStandardMaterial({ color: '#e9ece5', roughness: 0.72 }), // goalkeeper gloves
   ]
   const mesh = new THREE.SkinnedMesh(geometry, materials)
   mesh.name = 'EFU_' + profile.id + '_SkinnedAthlete'
