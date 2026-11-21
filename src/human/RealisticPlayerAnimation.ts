@@ -65,6 +65,8 @@ export function useRealisticPlayerAnimation(options: Options) {
   const scanTarget = useRef(new THREE.Vector3())
   const worldPosition = useRef(new THREE.Vector3())
   const previousLod = useRef<AthleteLod>('distance')
+  const faceFrame = useRef(0)
+  const faceDelta = useRef(0)
 
   useFrame((state, delta) => {
     const root = refs.root.current
@@ -75,6 +77,25 @@ export function useRealisticPlayerAnimation(options: Options) {
     root.rotation.y = -runtime.facing + Math.PI / 2
     root.rotation.z = THREE.MathUtils.damp(root.rotation.z, -visual.slip * 0.22 + visual.stumble * 0.3, 6, delta)
     root.position.y = Math.abs(Math.sin(visual.gaitPhase * 2)) * Math.min(0.034, speed * 0.004) - visual.goalkeeperDive * 0.24 + visual.jump * 0.25
+
+    root.getWorldPosition(worldPosition.current)
+    const distance = camera.position.distanceTo(worldPosition.current)
+    const lod = selectAthleteLod(distance, quality, controlled, previousLod.current)
+    previousLod.current = lod
+    if (refs.highLod.current) refs.highLod.current.visible = lod === 'hero'
+    if (refs.fieldLod.current) refs.fieldLod.current.visible = lod === 'field'
+    if (refs.lowLod.current) refs.lowLod.current.visible = lod === 'distance'
+
+    const budget = ATHLETE_LOD_BUDGETS[quality]
+    const closeDetail = lod === 'hero' && distance < budget.faceDistance
+    if (refs.faceDetail.current) refs.faceDetail.current.visible = closeDetail
+    if (refs.hairDetail.current) refs.hairDetail.current.visible = lod === 'hero' && distance < budget.faceDistance * 1.5
+    if (refs.leftHandDetail.current) refs.leftHandDetail.current.visible = closeDetail
+    if (refs.rightHandDetail.current) refs.rightHandDetail.current.visible = closeDetail
+    if (refs.leftBootDetail.current) refs.leftBootDetail.current.visible = lod === 'hero'
+    if (refs.rightBootDetail.current) refs.rightBootDetail.current.visible = lod === 'hero'
+    const updateFace = lod === 'hero' && faceFrame.current++ % budget.faceUpdateFrames === 0
+    faceDelta.current = lod === 'hero' ? faceDelta.current + delta : 0
 
     const leftPlant = footPlantOffset(visual.gaitPhase, -1, visual.strideLength, speed, visual.plantBias)
     const rightPlant = footPlantOffset(visual.gaitPhase, 1, visual.strideLength, speed, visual.plantBias)
@@ -111,16 +132,19 @@ export function useRealisticPlayerAnimation(options: Options) {
       if (refs.fieldRightArm.current) refs.fieldRightArm.current.rotation.x = -2.3
     }
 
-    blinkTimer.current -= delta
-    if (blinkTimer.current <= 0 && blinkPhase.current === 0) blinkPhase.current = 0.001
-    if (blinkPhase.current > 0) {
-      blinkPhase.current += delta * 13
-      const closure = Math.sin(Math.min(Math.PI, blinkPhase.current))
-      if (refs.leftLid.current) refs.leftLid.current.scale.y = 0.18 + closure
-      if (refs.rightLid.current) refs.rightLid.current.scale.y = 0.18 + closure
-      if (blinkPhase.current >= Math.PI) {
-        blinkPhase.current = 0
-        blinkTimer.current = THREE.MathUtils.lerp(1.7, 5.4, Math.abs(Math.sin(profile.number * 8.73 + state.clock.elapsedTime)))
+    if (updateFace) {
+      faceDelta.current = 0
+      blinkTimer.current -= faceDelta.current
+      if (blinkTimer.current <= 0 && blinkPhase.current === 0) blinkPhase.current = 0.001
+      if (blinkPhase.current > 0) {
+        blinkPhase.current += faceDelta.current * 13
+        const closure = Math.sin(Math.min(Math.PI, blinkPhase.current))
+        if (refs.leftLid.current) refs.leftLid.current.scale.y = 0.18 + closure
+        if (refs.rightLid.current) refs.rightLid.current.scale.y = 0.18 + closure
+        if (blinkPhase.current >= Math.PI) {
+          blinkPhase.current = 0
+          blinkTimer.current = THREE.MathUtils.lerp(1.7, 5.4, Math.abs(Math.sin(profile.number * 8.73 + state.clock.elapsedTime)))
+        }
       }
     }
 
@@ -130,40 +154,25 @@ export function useRealisticPlayerAnimation(options: Options) {
       scanTarget.current.copy(runtime.position).add(new THREE.Vector3(Math.cos(runtime.facing) * 5, 1.2, Math.sin(runtime.facing) * 5 + side))
       runtime.scanTarget.copy(scanTarget.current)
     }
-    if (refs.head.current) {
+    if (lod === 'hero' && refs.head.current) {
       const target = Math.atan2(runtime.scanTarget.z - runtime.position.z, runtime.scanTarget.x - runtime.position.x)
       const offset = Math.atan2(Math.sin(target - runtime.facing), Math.cos(target - runtime.facing))
       refs.head.current.rotation.y = THREE.MathUtils.damp(refs.head.current.rotation.y, THREE.MathUtils.clamp(offset, -0.72, 0.72), 6.5, delta)
     }
-    if (refs.eyes.current) refs.eyes.current.rotation.y = refs.head.current ? refs.head.current.rotation.y * 0.32 : 0
-    if (refs.mouth.current) refs.mouth.current.scale.y = THREE.MathUtils.damp(refs.mouth.current.scale.y, Math.max(0.12, runtime.physical.breathing * 0.55 + runtime.emotion.joy * 0.3), 5, delta)
+    if (updateFace && refs.eyes.current) refs.eyes.current.rotation.y = refs.head.current ? refs.head.current.rotation.y * 0.32 : 0
+    if (updateFace && refs.mouth.current) refs.mouth.current.scale.y = THREE.MathUtils.damp(refs.mouth.current.scale.y, Math.max(0.12, runtime.physical.breathing * 0.55 + runtime.emotion.joy * 0.3), 5, delta)
 
-    const wetness = Math.max(runtime.physical.sweat, runtime.physical.wetness)
-    for (const material of skinMaterials.current) {
-      material.roughness = THREE.MathUtils.damp(material.roughness, THREE.MathUtils.lerp(0.56, 0.28, wetness), 1.5, delta)
-      material.clearcoat = THREE.MathUtils.damp(material.clearcoat, THREE.MathUtils.lerp(0.04, 0.5, wetness), 1.5, delta)
+    if (lod === 'hero') {
+      const wetness = Math.max(runtime.physical.sweat, runtime.physical.wetness)
+      for (const material of skinMaterials.current) {
+        material.roughness = THREE.MathUtils.damp(material.roughness, THREE.MathUtils.lerp(0.56, 0.28, wetness), 1.5, delta)
+        material.clearcoat = THREE.MathUtils.damp(material.clearcoat, THREE.MathUtils.lerp(0.04, 0.5, wetness), 1.5, delta)
+      }
+      for (const material of kitMaterials.current) material.roughness = THREE.MathUtils.damp(material.roughness, THREE.MathUtils.lerp(0.68, 0.42, runtime.physical.wetness), 1.2, delta)
+      if (refs.hair.current) refs.hair.current.scale.y = THREE.MathUtils.damp(refs.hair.current.scale.y, 1 - runtime.physical.wetness * 0.17, 1.1, delta)
+      if (refs.jerseyFront.current) refs.jerseyFront.current.rotation.x = THREE.MathUtils.damp(refs.jerseyFront.current.rotation.x, -speed * 0.005, 5, delta)
+      if (refs.jerseyBack.current) refs.jerseyBack.current.rotation.x = THREE.MathUtils.damp(refs.jerseyBack.current.rotation.x, speed * 0.007, 5, delta)
     }
-    for (const material of kitMaterials.current) material.roughness = THREE.MathUtils.damp(material.roughness, THREE.MathUtils.lerp(0.68, 0.42, runtime.physical.wetness), 1.2, delta)
-    if (refs.hair.current) refs.hair.current.scale.y = THREE.MathUtils.damp(refs.hair.current.scale.y, 1 - runtime.physical.wetness * 0.17, 1.1, delta)
-    if (refs.jerseyFront.current) refs.jerseyFront.current.rotation.x = THREE.MathUtils.damp(refs.jerseyFront.current.rotation.x, -speed * 0.005, 5, delta)
-    if (refs.jerseyBack.current) refs.jerseyBack.current.rotation.x = THREE.MathUtils.damp(refs.jerseyBack.current.rotation.x, speed * 0.007, 5, delta)
-
-    root.getWorldPosition(worldPosition.current)
-    const distance = camera.position.distanceTo(worldPosition.current)
-    const lod = selectAthleteLod(distance, quality, controlled, previousLod.current)
-    previousLod.current = lod
-    if (refs.highLod.current) refs.highLod.current.visible = lod === 'hero'
-    if (refs.fieldLod.current) refs.fieldLod.current.visible = lod === 'field'
-    if (refs.lowLod.current) refs.lowLod.current.visible = lod === 'distance'
-
-    const budget = ATHLETE_LOD_BUDGETS[quality]
-    const closeDetail = lod === 'hero' && distance < budget.faceDistance
-    if (refs.faceDetail.current) refs.faceDetail.current.visible = closeDetail
-    if (refs.hairDetail.current) refs.hairDetail.current.visible = lod === 'hero' && distance < budget.faceDistance * 1.5
-    if (refs.leftHandDetail.current) refs.leftHandDetail.current.visible = closeDetail
-    if (refs.rightHandDetail.current) refs.rightHandDetail.current.visible = closeDetail
-    if (refs.leftBootDetail.current) refs.leftBootDetail.current.visible = lod === 'hero'
-    if (refs.rightBootDetail.current) refs.rightBootDetail.current.visible = lod === 'hero'
 
     visual.kick = THREE.MathUtils.damp(visual.kick, 0, 8, delta)
     visual.tackle = THREE.MathUtils.damp(visual.tackle, 0, 7, delta)
