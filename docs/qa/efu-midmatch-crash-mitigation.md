@@ -20,7 +20,9 @@ These are credible stability/performance defects. **They are not proof of the ex
 4. New isolated `MatchSceneErrorBoundary` catches React rendering faults; the WebGL context watcher detects browser context loss/restoration and permits recovery attempts.
 5. Recovery pauses the game, disables performance capture, releases held touch actions, switches to Performance quality and offers **Restart 3D graphics**. React match score and elapsed match minute stay present, but the ball and player simulation positions are rebuilt from the beginning when a new scene is mounted.
 6. The inner match event loop now compares squared positions and velocities without repeated Vector3 allocations.
-7. `npm run stability:validate` checks recovery wiring, reduced render workload, deterministic match-clock batching, material lifecycle and local-only crash diagnostics.
+7. `npm run stability:validate` checks recovery wiring, reduced render workload, deterministic match-clock batching, material lifecycle, service-worker offline behavior and local-only crash diagnostics.
+8. Service worker caches only bounded same-origin static assets (maximum 60 files, 2 MiB each). It no longer caches arbitrary GET/API responses, returns HTML only for failed navigation requests, and no longer forces an in-game worker takeover.
+9. Live-match audio callbacks are guarded so a non-fatal browser audio error does not abort the 3D frame callback.
 
 ## Physical Android acceptance gates
 
