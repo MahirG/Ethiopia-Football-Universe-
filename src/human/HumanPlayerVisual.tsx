@@ -42,6 +42,11 @@ export function HumanPlayerVisual({ profile, runtime, motion, kitColor, secondar
   const rootRef = useRef<THREE.Group>(null)
   const highLodRef = useRef<THREE.Group>(null)
   const lowLodRef = useRef<THREE.Group>(null)
+  const fieldLodRef = useRef<THREE.Group>(null)
+  const fieldLeftArmRef = useRef<THREE.Group>(null)
+  const fieldRightArmRef = useRef<THREE.Group>(null)
+  const fieldLeftLegRef = useRef<THREE.Group>(null)
+  const fieldRightLegRef = useRef<THREE.Group>(null)
   const torsoRef = useRef<THREE.Group>(null)
   const pelvisRef = useRef<THREE.Group>(null)
   const headRef = useRef<THREE.Group>(null)
@@ -79,6 +84,11 @@ export function HumanPlayerVisual({ profile, runtime, motion, kitColor, secondar
     root: rootRef,
     highLod: highLodRef,
     lowLod: lowLodRef,
+    fieldLod: fieldLodRef,
+    fieldLeftArm: fieldLeftArmRef,
+    fieldRightArm: fieldRightArmRef,
+    fieldLeftLeg: fieldLeftLegRef,
+    fieldRightLeg: fieldRightLegRef,
     torso: torsoRef,
     pelvis: pelvisRef,
     head: headRef,
@@ -152,6 +162,23 @@ export function HumanPlayerVisual({ profile, runtime, motion, kitColor, secondar
           <planeGeometry args={[body.shoulderWidth * 0.82, body.torsoLength * 0.72]} />
           <meshBasicMaterial map={backTexture ?? undefined} transparent alphaTest={0.03} depthWrite={false} toneMapped={false} />
         </mesh>
+        {/* A separate neck trim, seam piping and jersey panels improve the silhouette in close-up. */}
+        <mesh position={[0, body.torsoLength * 0.53, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[body.neckThickness * 1.04, 0.018, 7, 18]} />
+          <meshStandardMaterial color={trim} roughness={0.84} />
+        </mesh>
+        {[-1, 1].map((side) => (
+          <group key={side}>
+            <mesh position={[side * body.shoulderWidth * 0.38, body.torsoLength * 0.35, 0.084]} rotation={[0, 0, side * 0.2]}>
+              <capsuleGeometry args={[0.011, 0.12, 3, 7]} />
+              <meshStandardMaterial color={trim} roughness={0.92} />
+            </mesh>
+            <mesh position={[side * torsoWidth * 0.57, body.torsoLength * 0.06, 0]} scale={[0.5, 1, 0.56]}>
+              <capsuleGeometry args={[0.028, body.torsoLength * 0.32, 4, 9]} />
+              <meshStandardMaterial color={accent} roughness={0.9} />
+            </mesh>
+          </group>
+        ))}
         <mesh position={[0, body.torsoLength * 0.56, 0]}>
           <cylinderGeometry args={[body.neckThickness * 0.79, body.neckThickness, body.neckLength, 18]} />
           <PlayerPbr color={profile.face.skinTone} skin refs={skinMaterials} />
@@ -162,6 +189,58 @@ export function HumanPlayerVisual({ profile, runtime, motion, kitColor, secondar
       <RealisticArm side={1} profile={profile} jersey={jersey} upperRef={rightArmRef} lowerRef={rightForearmRef} detailRef={rightHandDetailRef} skinMaterials={skinMaterials} kitMaterials={kitMaterials} />
       <RealisticLeg side={-1} profile={profile} shorts={shorts} socks={socks} upperRef={leftLegRef} lowerRef={leftCalfRef} footRef={leftFootRef} detailRef={leftBootDetailRef} skinMaterials={skinMaterials} kitMaterials={kitMaterials} />
       <RealisticLeg side={1} profile={profile} shorts={shorts} socks={socks} upperRef={rightLegRef} lowerRef={rightCalfRef} footRef={rightFootRef} detailRef={rightBootDetailRef} skinMaterials={skinMaterials} kitMaterials={kitMaterials} />
+    </group>
+    {/* Intermediate broadcast rig: articulated legs and arms preserve believable
+        movement at lower draw cost than 22 fully detailed facial models. */}
+    <group ref={fieldLodRef} visible={false}>
+      <mesh position={[0, 0.10, 0]} scale={[body.shoulderWidth / 0.45, body.torsoLength / 0.58, torsoDepth / 0.25]} castShadow>
+        <capsuleGeometry args={[0.245, 0.33, 7, 11]} />
+        <meshStandardMaterial color={jersey} roughness={0.82} />
+      </mesh>
+      <mesh position={[0, -body.torsoLength * 0.34, 0]} scale={[body.hipWidth / 0.35, 0.8, 1]}>
+        <capsuleGeometry args={[0.218, 0.12, 6, 10]} />
+        <meshStandardMaterial color={shorts} roughness={0.8} />
+      </mesh>
+      <mesh position={[0, body.torsoLength * 0.69 + body.neckLength, 0]} scale={[profile.face.faceWidth, 1, 0.93]} castShadow>
+        <sphereGeometry args={[0.187, 13, 11]} />
+        <meshStandardMaterial color={profile.face.skinTone} roughness={0.61} />
+      </mesh>
+      <mesh position={[0, body.torsoLength * 0.81 + body.neckLength, -0.014]} scale={[1, 0.65, 0.94]}>
+        <sphereGeometry args={[0.191, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.54]} />
+        <meshStandardMaterial color={profile.face.hairTone} roughness={1} />
+      </mesh>
+      {([-1, 1] as const).map((side) => (
+        <group key={side}>
+          <group ref={side === -1 ? fieldLeftArmRef : fieldRightArmRef} position={[side * body.shoulderWidth * 0.56, body.torsoLength * 0.41, 0]}>
+            <mesh position={[0, -body.upperArmLength * 0.25, 0]} castShadow>
+              <capsuleGeometry args={[0.078, body.upperArmLength * 0.32, 5, 9]} />
+              <meshStandardMaterial color={jersey} roughness={0.84} />
+            </mesh>
+            <mesh position={[0, -body.upperArmLength * 0.85, 0]} castShadow>
+              <capsuleGeometry args={[0.058, body.lowerArmLength * 0.72, 5, 9]} />
+              <meshStandardMaterial color={profile.face.skinTone} roughness={0.65} />
+            </mesh>
+          </group>
+          <group ref={side === -1 ? fieldLeftLegRef : fieldRightLegRef} position={[side * body.hipWidth * 0.40, -body.torsoLength * 0.40, 0]}>
+            <mesh position={[0, -body.upperLegLength * 0.37, 0]} castShadow>
+              <capsuleGeometry args={[0.106, body.upperLegLength * 0.50, 5, 10]} />
+              <meshStandardMaterial color={shorts} roughness={0.83} />
+            </mesh>
+            <mesh position={[0, -body.upperLegLength * 0.82, 0]} castShadow>
+              <capsuleGeometry args={[0.077, body.lowerLegLength * 0.30, 5, 9]} />
+              <meshStandardMaterial color={profile.face.skinTone} roughness={0.68} />
+            </mesh>
+            <mesh position={[0, -body.upperLegLength - body.lowerLegLength * 0.39, 0]} castShadow>
+              <capsuleGeometry args={[0.072, body.lowerLegLength * 0.64, 5, 9]} />
+              <meshStandardMaterial color={socks} roughness={0.82} />
+            </mesh>
+            <mesh position={[0, -body.upperLegLength - body.lowerLegLength * 0.87, body.footLength * 0.27]} castShadow>
+              <boxGeometry args={[0.16, 0.12, body.footLength]} />
+              <meshStandardMaterial color="#181c1b" roughness={0.46} />
+            </mesh>
+          </group>
+        </group>
+      ))}
     </group>
     <group ref={lowLodRef} visible={false}>
       <mesh position={[0, 0.17, 0]} scale={[body.shoulderWidth / 0.45, body.torsoLength / 0.58, 0.9]} castShadow>
