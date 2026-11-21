@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { MutableRefObject } from 'react'
@@ -33,7 +33,25 @@ export function RiggedAthlete({
     () => createRiggedAthlete(profile, { jersey, shorts, socks, trim }, quality, frontNumber, backNumber),
     [profile, quality, jersey, shorts, socks, trim, frontNumber, backNumber],
   )
-  useEffect(() => () => rig.dispose(), [rig])
+  // React StrictMode can replay effect cleanup without disposing the mounted
+  // scene. Cancel a pending disposal if the exact rig is attached again.
+  const cleanupQueue = useRef(new Map<typeof rig, { cancelled: boolean }>())
+  useEffect(() => {
+    const pending = cleanupQueue.current.get(rig)
+    if (pending) {
+      pending.cancelled = true
+      cleanupQueue.current.delete(rig)
+    }
+    return () => {
+      const disposal = { cancelled: false }
+      cleanupQueue.current.set(rig, disposal)
+      queueMicrotask(() => {
+        if (disposal.cancelled) return
+        rig.dispose()
+        cleanupQueue.current.delete(rig)
+      })
+    }
+  }, [rig])
 
   useFrame((_, delta) => {
     // No animation work for a distant/hidden LOD.
