@@ -1,13 +1,25 @@
 /* eslint-disable react-refresh/only-export-components */
-import type { MutableRefObject, RefObject } from 'react'
+import { useCallback, useRef, type MutableRefObject, type RefObject } from 'react'
 import * as THREE from 'three'
 import type { PlayerProfile } from './types'
 
 export type PlayerMaterialRefs = MutableRefObject<THREE.MeshPhysicalMaterial[]>
 
 export function PlayerPbr({ color, refs, skin = false }: { color: string; refs: PlayerMaterialRefs; skin?: boolean }) {
+  // Remove old GPU material references when React unmounts/replaces a player.
+  // Previously the array retained disposed materials over match restarts.
+  const assigned = useRef<THREE.MeshPhysicalMaterial | null>(null)
+  const attachMaterial = useCallback((material: THREE.MeshPhysicalMaterial | null) => {
+    const previous = assigned.current
+    if (previous && previous !== material) {
+      const index = refs.current.indexOf(previous)
+      if (index >= 0) refs.current.splice(index, 1)
+    }
+    if (material && !refs.current.includes(material)) refs.current.push(material)
+    assigned.current = material
+  }, [refs])
   return <meshPhysicalMaterial
-    ref={(material) => { if (material && !refs.current.includes(material)) refs.current.push(material) }}
+    ref={attachMaterial}
     color={color}
     roughness={skin ? 0.54 : 0.68}
     clearcoat={skin ? 0.05 : 0.02}
