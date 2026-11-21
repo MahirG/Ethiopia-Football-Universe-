@@ -6,6 +6,7 @@ import './audio/audio.css'
 import './input/controls.css'
 import './golden-era.css'
 import './input/mobile-football.css'
+import './diagnostics/device-lab.css'
 import { AudioProvider } from './audio/AudioProvider'
 import { installKickoffSafety } from './runtime/kickoffSafety'
 
