@@ -1,4 +1,4 @@
-import { Component, useEffect, useRef, type ErrorInfo, type ReactNode } from 'react'
+import { Component, useEffect, useRef, type ReactNode } from 'react'
 import { useThree } from '@react-three/fiber'
 
 interface SceneBoundaryProps {
@@ -18,7 +18,7 @@ export class MatchSceneErrorBoundary extends Component<SceneBoundaryProps, Scene
     return { failed: true }
   }
 
-  componentDidCatch(error: Error, _info: ErrorInfo) {
+  componentDidCatch(error: Error) {
     this.props.onFailure(error)
   }
 
