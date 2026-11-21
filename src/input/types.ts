@@ -31,6 +31,7 @@ export interface ControlSettings {
   touchScale: number
   touchOpacity: number
   touchSensitivity: number
+  joystickDeadZone: number
   gamepadDeadZone: number
   gamepadSensitivity: number
   haptics: boolean
