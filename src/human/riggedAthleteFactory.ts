@@ -312,8 +312,9 @@ export function createRiggedAthlete(
   const unscaledHeight = Math.max(0.1, bounds.max.y - bounds.min.y)
   const modelScale = THREE.MathUtils.clamp(body.height / unscaledHeight, 0.65, 1.05)
   mesh.scale.setScalar(modelScale)
-  // The PlayerAvatar rigid body is centered at PLAYER_HEIGHT / 2 (0.91m).
-  mesh.position.y = -0.91 - bounds.min.y * modelScale
+  // Each player's Rapier body is centered at profile.height / 2, not a
+  // constant: align the shoes with the actual pitch for every archetype.
+  mesh.position.y = -body.height / 2 - bounds.min.y * modelScale
   mesh.updateMatrixWorld(true)
 
   return {
