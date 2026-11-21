@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { consumeVirtualInput, getControlSettings, markActiveInputDevice, publishFootballAction, releaseAllVirtualInput } from './bus'
 import type { FootballInputAction, UniversalInputState } from './types'
+import { normalizeStick } from './mobileControlMath'
 
-const PREVENT_DEFAULT_KEYS = new Set([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'tab'])
+const PREVENT_DEFAULT_KEYS = new Set([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'])
 
 const KEYBOARD_BINDINGS: Partial<Record<string, FootballInputAction>> = {
   shift: 'sprint',
@@ -21,7 +22,7 @@ const KEYBOARD_BINDINGS: Partial<Record<string, FootballInputAction>> = {
   x: 'cancel',
   z: 'manual-control',
   escape: 'pause',
-  tab: 'tactics',
+  m: 'tactics',
 }
 
 function emptyState(): UniversalInputState {
@@ -37,12 +38,6 @@ function emptyState(): UniversalInputState {
     connectedGamepad: null,
     lastInputAt: 0,
   }
-}
-
-function applyDeadZone(value: number, deadZone: number) {
-  const absolute = Math.abs(value)
-  if (absolute <= deadZone) return 0
-  return Math.sign(value) * Math.min(1, (absolute - deadZone) / (1 - deadZone))
 }
 
 export function useUniversalInput() {
@@ -69,6 +64,9 @@ export function useUniversalInput() {
     }
     const onKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase()
+      const target = event.target
+      // Never hijack text inputs, menus, focus navigation or the browser Tab key.
+      if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName))) return
       if (!event.repeat) {
         state.current.rawKeys.add(key)
         setKeyboardAction(key, true)
@@ -112,6 +110,14 @@ export function useUniversalInput() {
     }
     const onTouch = () => markActiveInputDevice('touch')
     const onGamepad = () => markActiveInputDevice('gamepad')
+    const onGamepadDisconnect = () => {
+      gamepadPrevious.current.forEach((action) => transientReleased.current.add(action))
+      gamepadPrevious.current.clear()
+      markActiveInputDevice('unknown')
+    }
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') onBlur()
+    }
 
     window.addEventListener('keydown', onKeyDown, { passive: false })
     window.addEventListener('keyup', onKeyUp)
@@ -121,6 +127,8 @@ export function useUniversalInput() {
     window.addEventListener('blur', onBlur)
     window.addEventListener('touchstart', onTouch, { passive: true })
     window.addEventListener('gamepadconnected', onGamepad)
+    window.addEventListener('gamepaddisconnected', onGamepadDisconnect)
+    document.addEventListener('visibilitychange', onVisibility)
 
     const update = (now: number) => {
       const delta = Math.min(0.1, Math.max(0, (now - previousTime) / 1000))
@@ -134,11 +142,10 @@ export function useUniversalInput() {
       const pad = Array.from(pads).find((item): item is Gamepad => Boolean(item?.connected))
       if (pad) {
         connectedGamepad = pad.id
-        const x = applyDeadZone(-(pad.axes[1] ?? 0), settings.gamepadDeadZone) * settings.gamepadSensitivity
-        const z = applyDeadZone(pad.axes[0] ?? 0, settings.gamepadDeadZone) * settings.gamepadSensitivity
-        const rawMagnitude = Math.hypot(x, z)
-        const magnitude = Math.min(1, rawMagnitude)
-        gamepadMove = rawMagnitude > 0 ? { x: (x / rawMagnitude) * magnitude, z: (z / rawMagnitude) * magnitude, magnitude } : { x: 0, z: 0, magnitude: 0 }
+        // Radial dead zone treats diagonals consistently and ignores axis noise.
+        gamepadMove = normalizeStick(-(pad.axes[1] ?? 0), pad.axes[0] ?? 0,
+          settings.gamepadDeadZone, settings.gamepadSensitivity)
+        const magnitude = gamepadMove.magnitude
         const button = (index: number) => (pad.buttons[index]?.value ?? 0) > 0.45
         if (button(0)) gamepadHeld.add('pass')
         if (button(1)) gamepadHeld.add('shoot')
@@ -215,6 +222,8 @@ export function useUniversalInput() {
       window.removeEventListener('blur', onBlur)
       window.removeEventListener('touchstart', onTouch)
       window.removeEventListener('gamepadconnected', onGamepad)
+      window.removeEventListener('gamepaddisconnected', onGamepadDisconnect)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
   return state

@@ -1,0 +1,150 @@
+/* EFU Mobile Football Experience — Phase 4
+   Player controls live in the match layer, never in the global page dock.
+   Safe-area aware; every input target remains independent for multitouch.
+*/
+.efu-mobile-match-controls {
+  --efu-touch-gold:#f1ca70;
+  --efu-touch-emerald:#174f36;
+  z-index:20;
+  gap:clamp(8px,2vw,22px);
+  bottom:max(10px,env(safe-area-inset-bottom));
+  left:max(10px,env(safe-area-inset-left));
+  right:max(10px,env(safe-area-inset-right));
+  opacity:var(--touch-opacity);
+  -webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+  touch-action:none;
+}
+.efu-mobile-match-controls .universal-joystick,
+.efu-mobile-match-controls .universal-action-cluster button,
+.efu-mobile-match-controls .universal-modifier-cluster button {
+  touch-action:none;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;
+  user-select:none;
+}
+.efu-mobile-match-controls .joystick-ring {
+  border:2px solid rgba(247,209,125,.57);
+  background:radial-gradient(circle,rgba(224,187,98,.13),rgba(8,30,19,.77) 72%);
+  box-shadow:0 8px 27px rgba(0,0,0,.3), inset 0 0 0 8px rgba(255,255,255,.035);
+  transition:border-color .14s ease,box-shadow .14s ease;
+}
+.efu-mobile-match-controls .joystick-knob {
+  border:2px solid #f3d695;
+  background:linear-gradient(145deg,#41684f,#0a291c);
+  box-shadow:0 5px 17px rgba(0,0,0,.4),inset 0 1px rgba(255,255,255,.21);
+  transition:box-shadow .14s ease;
+}
+.efu-mobile-match-controls .universal-joystick.is-active .joystick-ring {border-color:#f2d891;box-shadow:0 0 0 5px rgba(232,188,97,.08),0 8px 27px #0006}
+.efu-mobile-match-controls .joystick-knob.active {box-shadow:0 0 0 6px rgba(238,196,106,.20),0 6px 20px #0007}
+.efu-mobile-match-controls .universal-action-cluster button,
+.efu-mobile-match-controls .universal-modifier-cluster button {
+  border:1px solid rgba(247,211,138,.5);
+  background:linear-gradient(145deg,rgba(27,69,45,.97),rgba(7,29,19,.93));
+  box-shadow:0 7px 18px rgba(0,0,0,.32),inset 0 1px rgba(255,255,255,.11);
+  color:#fff4d5;
+  min-width:40px;
+  min-height:40px;
+  line-height:1.15;
+  text-shadow:0 1px 3px #0006;
+}
+.efu-mobile-match-controls .universal-action-cluster button.is-pressed,
+.efu-mobile-match-controls .universal-modifier-cluster button.is-pressed {
+  border-color:#ffe7a0!important;
+  background:linear-gradient(145deg,#916723,#3b391e)!important;
+  box-shadow:0 0 0 5px rgba(237,199,106,.22),inset 0 2px 9px #0004!important;
+  transform:scale(.94);
+}
+.efu-mobile-match-controls .action-shoot {
+  border:2px solid #f3c76a!important;
+  background:linear-gradient(135deg,#c6953b,#68451c)!important;
+  color:#fff8e6;
+  font-size:calc(9px * var(--touch-scale));
+}
+.efu-mobile-match-controls .action-pass {border-color:#69ce91!important}
+.efu-mobile-match-controls .action-through {border-color:#f6ce6c!important}
+.efu-mobile-match-controls .action-tackle {border-color:#e69383!important}
+.efu-mobile-match-controls .action-switch {font-size:calc(7px * var(--touch-scale))!important}
+.efu-mobile-match-controls .modifier-sprint {border-color:#72d69d!important}
+.efu-mobile-match-controls .modifier-skill {border-color:#edc66a!important}
+.efu-mobile-match-controls .universal-action-cluster button:focus-visible,
+.efu-mobile-match-controls .universal-modifier-cluster button:focus-visible {
+  outline:3px solid #fff1a8;outline-offset:3px;
+}
+
+/* Compact phones: two clean action rows with a third row of modifiers.
+   Left and right zones cannot collide, even on a 320px-wide device. */
+@media (max-width:600px) {
+  .efu-mobile-match-controls {
+    --compact-control-size:clamp(.78,var(--touch-scale),1);
+    left:max(6px,env(safe-area-inset-left));
+    right:max(6px,env(safe-area-inset-right));
+    bottom:max(8px,env(safe-area-inset-bottom));
+    align-items:flex-end;
+  }
+  .efu-mobile-match-controls .universal-joystick {
+    width:calc(94px * var(--compact-control-size));
+    height:calc(94px * var(--compact-control-size));
+    flex-shrink:0;
+  }
+  .efu-mobile-match-controls .universal-action-cluster {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:repeat(2,minmax(0,1fr));
+    gap:4px;
+    width:clamp(151px,45vw,178px);
+    height:106px;
+    flex-shrink:0;
+  }
+  .efu-mobile-match-controls .universal-action-cluster button {
+    position:static;
+    width:100%;
+    height:100%;
+    min-width:0;
+    min-height:42px;
+    border-radius:14px;
+    font:800 clamp(8px,2.3vw,10px)/1.1 Manrope,sans-serif!important;
+  }
+  .efu-mobile-match-controls .action-shoot {font-size:clamp(9px,2.5vw,11px)!important}
+  .efu-mobile-match-controls .universal-modifier-cluster {
+    position:absolute;
+    right:0;
+    left:auto;
+    bottom:116px;
+    width:clamp(151px,45vw,178px);
+    height:44px;
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:4px;
+    transform:none;
+  }
+  .efu-mobile-match-controls .universal-modifier-cluster button {
+    position:static;width:100%;height:44px;
+    min-height:44px;min-width:0;
+    border-radius:12px;
+    font:800 clamp(7px,2vw,9px)/1 Manrope,sans-serif!important;
+  }
+  .efu-mobile-match-controls.is-left-handed .universal-modifier-cluster {
+    left:0;right:auto;transform:none;
+  }
+}
+@media (max-width:360px) {
+  .efu-mobile-match-controls .universal-joystick {width:83px;height:83px}
+  .efu-mobile-match-controls .universal-action-cluster,
+  .efu-mobile-match-controls .universal-modifier-cluster {width:147px}
+  .efu-mobile-match-controls .universal-action-cluster {height:98px}
+  .efu-mobile-match-controls .universal-modifier-cluster {bottom:108px}
+}
+@media (max-height:450px) and (orientation:landscape) {
+  .efu-mobile-match-controls {bottom:max(5px,env(safe-area-inset-bottom))}
+  .efu-mobile-match-controls .universal-joystick {width:calc(106px * var(--touch-scale));height:calc(106px * var(--touch-scale))}
+  .efu-mobile-match-controls .universal-modifier-cluster {height:calc(146px * var(--touch-scale))}
+}
+@media (prefers-reduced-motion:reduce) {
+  .efu-mobile-match-controls * {transition:none!important;animation:none!important}
+}
+@media (forced-colors:active) {
+  .efu-mobile-match-controls button,.efu-mobile-match-controls .joystick-ring {border:2px solid ButtonText}
+}
