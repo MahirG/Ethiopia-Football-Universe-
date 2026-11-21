@@ -25,11 +25,14 @@ export function HumanPlayerVisual({ profile, runtime, motion, kitColor, secondar
   const body = profile.body
   const home = profile.team === 'home'
   const goalkeeper = profile.role === 'goalkeeper'
-  const jersey = goalkeeper ? secondaryColor : home ? '#0b7a43' : kitColor
-  const shorts = goalkeeper ? '#23313a' : home ? '#c92731' : secondaryColor
-  const socks = goalkeeper ? '#232b2f' : home ? '#f0ce32' : '#f2f0e8'
-  const trim = home && !goalkeeper ? '#efcf31' : secondaryColor
-  const accent = home && !goalkeeper ? '#c91f2e' : kitColor
+  // Use the real club's own colors instead of forcing every home club
+  // into one green/red/yellow costume. The selected goalkeeper wears a
+  // contrasting graphite kit, echoing the approved EFU character concept.
+  const jersey = goalkeeper ? '#263039' : kitColor
+  const shorts = goalkeeper ? '#22292f' : secondaryColor
+  const socks = goalkeeper ? '#1d262d' : secondaryColor
+  const trim = goalkeeper ? '#d7dfdc' : home ? '#edcd73' : secondaryColor
+  const accent = goalkeeper ? '#91a49a' : home ? '#d9ae4e' : kitColor
   const shirtResolution = quality === 'ultra' ? 512 : quality === 'balanced' ? 256 : 128
   const frontTexture = useMemo(() => createShirtTexture(profile.number, true, home && !goalkeeper, shirtResolution), [profile.number, home, goalkeeper, shirtResolution])
   const backTexture = useMemo(() => createShirtTexture(profile.number, false, home && !goalkeeper, shirtResolution), [profile.number, home, goalkeeper, shirtResolution])
@@ -216,9 +219,9 @@ export function HumanPlayerVisual({ profile, runtime, motion, kitColor, secondar
         <meshStandardMaterial color={socks} roughness={0.7} />
       </mesh>)}
     </group>
-    {controlled && <mesh position={[0, body.height * 0.72, 0]} rotation={[0, 0, Math.PI]}>
-      <coneGeometry args={[0.17, 0.3, 4]} />
-      <meshStandardMaterial color="#f5d03b" emissive="#d99d12" emissiveIntensity={0.82} />
+    {controlled && <mesh position={[0, body.height * 0.65, 0]} rotation={[0, 0, Math.PI]}>
+      <coneGeometry args={[0.09, 0.14, 3]} />
+      <meshStandardMaterial color="#f5d03b" emissive="#d99d12" emissiveIntensity={0.42} />
     </mesh>}
   </group>
 }

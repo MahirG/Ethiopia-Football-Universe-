@@ -34,7 +34,7 @@ interface Segment {
   material: number
   center: [number, number, number]
   radii: [number, number, number]
-  kind?: 'sphere' | 'front-number' | 'back-number'
+  kind?: 'sphere' | 'taper' | 'face' | 'front-number' | 'back-number'
   segments?: number
 }
 
@@ -94,50 +94,67 @@ export function createRiggedAthlete(
     previous.push({ material, bone: part, center, radii, segments })
     byMaterial.set(material, previous)
   }
+  // A tapered, continuously surfaced joint segment reads as an athletic limb,
+  // rather than the detached overlapping spheres of the old placeholder.
+  function taper(material: number, part: AthleteBoneName, center: Segment['center'], radii: Segment['radii']) {
+    const previous = byMaterial.get(material) ?? []
+    previous.push({ material, bone: part, center, radii, segments: detail, kind: 'taper' })
+    byMaterial.set(material, previous)
+  }
+  function sculptedFace(center: Segment['center'], radii: Segment['radii']) {
+    const previous = byMaterial.get(2) ?? []
+    previous.push({ material: 2, bone: 'head', center, radii,
+      segments: Math.max(14, detail * 2), kind: 'face' })
+    byMaterial.set(2, previous)
+  }
 
   const shoulder = body.shoulderWidth
   const hip = body.hipWidth
   const thighWidth = THREE.MathUtils.lerp(0.095, 0.135, body.muscle)
   const armWidth = THREE.MathUtils.lerp(0.062, 0.092, body.muscle)
-  // Tapered overlapping ellipsoids avoid the faceted capsule-to-box silhouette.
-  ellipsoid(0, 'spine', [0, 0.10, 0], [shoulder * 0.57, body.torsoLength * 0.49, 0.19])
-  ellipsoid(0, 'spine', [0, 0.30, 0], [shoulder * 0.62, 0.15, 0.195])
-  ellipsoid(1, 'hips', [0, -body.torsoLength * 0.36, 0], [hip * 0.65, 0.18, 0.16])
-  ellipsoid(6, 'spine', [0, body.torsoLength * 0.55, 0], [body.neckThickness * 1.05, 0.027, 0.113])
-  // Close-up faces remain handled by the existing high-detail renderer.
-  ellipsoid(2, 'head', [0, 0, 0], [0.20 * face.faceWidth, 0.235, 0.19])
-  ellipsoid(2, 'head', [0, -0.125, 0.018], [0.165 * face.jawWidth, 0.105, 0.165])
-  ellipsoid(2, 'head', [0, -0.035, 0.172], [0.039 * face.noseWidth, 0.07 * face.noseLength, 0.045])
+  // Footballer silhouette: broad shoulders, narrower waist and natural hip
+  // transition. The torso is no longer a round barrel with a sphere on top.
+  taper(0, 'spine', [0, 0.095, 0], [shoulder * 0.58, body.torsoLength * 0.94, 0.187])
+  ellipsoid(0, 'spine', [0, 0.24, 0], [shoulder * 0.55, 0.145, 0.17])
+  taper(1, 'hips', [0, -body.torsoLength * 0.35, 0], [hip * 0.63, 0.245, 0.157])
+  ellipsoid(6, 'spine', [0, body.torsoLength * 0.555, 0], [body.neckThickness * 0.96, 0.024, 0.107])
+  taper(2, 'spine',
+    [0, body.torsoLength * 0.69 + body.neckLength * 0.42, 0],
+    [body.neckThickness * 0.72, body.neckLength + 0.085, body.neckThickness * 0.71])
+  // Athletic adult proportions (~one eighth of full height for the head).
+  // A narrower jaw / skull replaces the huge doll-like head silhouette.
+  sculptedFace([0, -0.003, 0], [0.178 * face.faceWidth, 0.215, 0.161])
+  ellipsoid(2, 'head', [0, -0.026, 0.146], [0.035 * face.noseWidth, 0.055 * face.noseLength, 0.037])
   for (const side of [-1, 1] as const) {
-    ellipsoid(2, 'head', [side * 0.198, -0.035, 0], [0.032 * face.earScale, 0.058, 0.032])
-    ellipsoid(7, 'head', [side * 0.074 * face.eyeSpacing, 0.047, 0.174], [0.025, 0.013, 0.011], 8)
+    ellipsoid(2, 'head', [side * 0.173, -0.035, 0], [0.021 * face.earScale, 0.048, 0.025])
+    ellipsoid(7, 'head', [side * 0.065 * face.eyeSpacing, 0.040, 0.149], [0.021, 0.010, 0.009], 8)
     // Eyebrows and upper cheek planes preserve expressions in normal field views.
     if (quality !== 'performance') {
-      ellipsoid(5, 'head', [side * 0.075 * face.eyeSpacing, 0.093, 0.165],
-        [0.039, 0.010, 0.009], 8)
-      ellipsoid(2, 'head', [side * 0.064, -0.064, 0.132],
-        [0.063, 0.035 * face.cheekHeight, 0.026], 8)
+      ellipsoid(5, 'head', [side * 0.065 * face.eyeSpacing, 0.075, 0.147],
+        [0.033, 0.008, 0.007], 8)
+      ellipsoid(2, 'head', [side * 0.055, -0.050, 0.119],
+        [0.050, 0.022 * face.cheekHeight, 0.020], 8)
     }
   }
   if (quality !== 'performance') {
-    ellipsoid(10, 'head', [0, -0.128, 0.170], [0.049 * face.lipFullness, 0.012, 0.009], 8)
+    ellipsoid(10, 'head', [0, -0.112, 0.139], [0.041 * face.lipFullness, 0.007, 0.008], 8)
     if (face.beardStyle !== 'none') {
-      ellipsoid(5, 'head', [0, -0.168, 0.129],
-        [0.090 * face.jawWidth, face.beardStyle === 'goatee' ? 0.036 : 0.054, 0.032], 9)
+      ellipsoid(5, 'head', [0, -0.151, 0.115],
+        [0.074 * face.jawWidth, face.beardStyle === 'goatee' ? 0.028 : 0.042, 0.024], 9)
     }
   }
-  const hairHeight = face.hairStyle === 'afro' ? 0.125 : face.hairStyle === 'shaved' ? 0.022 : 0.065
-  ellipsoid(5, 'head', [0, 0.18 + hairHeight * 0.28, -0.011], [0.194 * face.faceWidth, hairHeight + 0.029, 0.182])
+  const hairHeight = face.hairStyle === 'afro' ? 0.095 : face.hairStyle === 'shaved' ? 0.012 : 0.046
+  ellipsoid(5, 'head', [0, 0.148 + hairHeight * 0.23, -0.006], [0.171 * face.faceWidth, hairHeight + 0.026, 0.154])
   if (face.hairStyle === 'afro' || face.hairStyle === 'coiled' || face.hairStyle === 'short-curl') {
     for (let index = 0; index < (quality === 'ultra' ? 10 : 6); index += 1) {
       const angle = index / (quality === 'ultra' ? 10 : 6) * Math.PI * 2
-      ellipsoid(5, 'head', [Math.cos(angle) * 0.125, 0.218 + index % 3 * 0.025, Math.sin(angle) * 0.122],
-        [0.055, 0.052, 0.055], 7)
+      ellipsoid(5, 'head', [Math.cos(angle) * 0.111, 0.187 + index % 3 * 0.018, Math.sin(angle) * 0.109],
+        [0.036, 0.034, 0.039], 8)
     }
   } else if (face.hairStyle === 'braids' && quality !== 'performance') {
     for (let index = 0; index < 6; index += 1) {
       const x = (index - 2.5) * 0.055
-      ellipsoid(5, 'head', [x, 0.222, -0.02], [0.020, 0.026, 0.14], 8)
+      ellipsoid(5, 'head', [x * 0.78, 0.182, -0.02], [0.016, 0.020, 0.116], 8)
     }
   }
 
@@ -147,16 +164,41 @@ export function createRiggedAthlete(
     const thigh = side < 0 ? 'thighL' : 'thighR'
     const shin = side < 0 ? 'shinL' : 'shinR'
     const foot = side < 0 ? 'footL' : 'footR'
-    ellipsoid(0, upperArm, [0, -body.upperArmLength * 0.28, 0], [armWidth * 1.19, body.upperArmLength * 0.39, armWidth * 1.18])
-    ellipsoid(2, upperArm, [0, -body.upperArmLength * 0.73, 0], [armWidth * 0.91, body.upperArmLength * 0.27, armWidth * 0.94])
-    ellipsoid(2, lowerArm, [0, -body.lowerArmLength * 0.39, 0], [armWidth * 0.76, body.lowerArmLength * 0.48, armWidth * 0.78])
-    ellipsoid(2, lowerArm, [0, -body.lowerArmLength * 0.96, 0], [armWidth * 0.80, 0.078 * body.handScale, armWidth * 0.55])
-    ellipsoid(1, thigh, [0, -body.upperLegLength * 0.23, 0], [thighWidth * 1.17, body.upperLegLength * 0.29, thighWidth])
-    ellipsoid(2, thigh, [0, -body.upperLegLength * 0.66, 0], [thighWidth, body.upperLegLength * 0.32, thighWidth * 0.87])
-    ellipsoid(2, shin, [0, -body.lowerLegLength * 0.23, 0], [thighWidth * 0.71, body.lowerLegLength * 0.3, thighWidth * 0.7])
-    ellipsoid(3, shin, [0, -body.lowerLegLength * 0.68, 0], [thighWidth * 0.66, body.lowerLegLength * 0.35, thighWidth * 0.67])
-    ellipsoid(4, foot, [0, -0.04, body.footLength * 0.27], [0.104, 0.084, body.footLength * 0.61])
-    ellipsoid(6, foot, [0, 0.017, body.footLength * 0.56], [0.061, 0.008, body.footLength * 0.22], 7)
+    // Sculpted clothing-to-skin transitions: tapered upper arms, elongated
+    // forearms and full-length football socks instead of ball-shaped joints.
+    taper(0, upperArm, [0, -body.upperArmLength * 0.26, 0],
+      [armWidth * 1.17, body.upperArmLength * 0.54, armWidth * 1.13])
+    taper(2, upperArm, [0, -body.upperArmLength * 0.77, 0],
+      [armWidth * 0.88, body.upperArmLength * 0.38, armWidth * 0.87])
+    taper(2, lowerArm, [0, -body.lowerArmLength * 0.47, 0],
+      [armWidth * 0.83, body.lowerArmLength * 0.91, armWidth * 0.81])
+    ellipsoid(2, lowerArm, [0, -body.lowerArmLength * 0.96, 0],
+      [armWidth * 0.62, 0.068 * body.handScale, armWidth * 0.48])
+    if (profile.role === 'goalkeeper') {
+      // Separate bright padded keeper gloves distinguish the keeper in a
+      // full-field match as well as a close-up: approved concept no. 1.
+      ellipsoid(11, lowerArm, [0, -body.lowerArmLength * 0.965, 0.015],
+        [armWidth * 1.12, 0.092 * body.handScale, armWidth * 0.83], 10)
+      ellipsoid(6, lowerArm, [0, -body.lowerArmLength * 0.83, 0],
+        [armWidth * 1.0, 0.019, armWidth * 1.02], 10)
+    }
+    if (profile.team === 'home' && profile.number === 4 && side < 0) {
+      // Distinct captain armband on the upper arm from the concept reference.
+      ellipsoid(6, upperArm, [0, -body.upperArmLength * 0.20, 0],
+        [armWidth * 1.24, 0.038, armWidth * 1.21], 10)
+    }
+    taper(1, thigh, [0, -body.upperLegLength * 0.22, 0],
+      [thighWidth * 1.14, body.upperLegLength * 0.47, thighWidth * 1.03])
+    taper(2, thigh, [0, -body.upperLegLength * 0.69, 0],
+      [thighWidth * 0.94, body.upperLegLength * 0.51, thighWidth * 0.90])
+    ellipsoid(2, shin, [0, -body.lowerLegLength * 0.08, 0],
+      [thighWidth * 0.74, 0.085, thighWidth * 0.74])
+    taper(3, shin, [0, -body.lowerLegLength * 0.57, 0],
+      [thighWidth * 0.77, body.lowerLegLength * 0.77, thighWidth * 0.75])
+    ellipsoid(4, foot, [0, -0.045, body.footLength * 0.30],
+      [0.091, 0.074, body.footLength * 0.61])
+    ellipsoid(6, foot, [0, 0.014, body.footLength * 0.55],
+      [0.052, 0.005, body.footLength * 0.21], 8)
     // A restrained kit identity: sleeve cuffs, short piping, sock bands, boots.
     ellipsoid(6, upperArm, [0, -body.upperArmLength * 0.51, 0],
       [armWidth * 1.10, 0.018, armWidth * 1.11], 8)
@@ -222,9 +264,26 @@ export function createRiggedAthlete(
     for (const segment of segments) {
       const piece = segment.kind === 'front-number' || segment.kind === 'back-number'
         ? new THREE.PlaneGeometry(segment.radii[0], segment.radii[1])
-        : new THREE.SphereGeometry(1, segment.segments ?? detail, Math.max(6, Math.floor((segment.segments ?? detail) * 0.77)))
+        : segment.kind === 'taper'
+          ? new THREE.CylinderGeometry(1, 0.75, 1, Math.max(9, segment.segments ?? detail), 3)
+          : new THREE.SphereGeometry(1, segment.segments ?? detail, Math.max(6, Math.floor((segment.segments ?? detail) * 0.77)))
       if (segment.kind === 'back-number') piece.rotateY(Math.PI)
-      if (!segment.kind || segment.kind === 'sphere') piece.scale(...segment.radii)
+      if (segment.kind === 'face') {
+        // Reshape the UV sphere into one continuous skull/chin surface. An
+        // overlaid round jaw creates the toy-like cheeks in the old models.
+        const attribute = piece.getAttribute('position')
+        for (let i = 0; i < attribute.count; i += 1) {
+          const x = attribute.getX(i), y = attribute.getY(i), z = attribute.getZ(i)
+          // Jaw narrows into the chin; upper cheek and brow remain adult width.
+          const jaw = y < 0 ? 1 + y * 0.24 : 1
+          const cheek = z > 0 && y > -0.5 && y < 0.28
+            ? Math.sin((y + 0.5) / 0.78 * Math.PI) * 0.075 : 0
+          attribute.setXYZ(i, x * jaw, y, z * (1 + cheek))
+        }
+        attribute.needsUpdate = true
+        piece.computeVertexNormals()
+      }
+      if (segment.kind !== 'front-number' && segment.kind !== 'back-number') piece.scale(...segment.radii)
       const joint = bindPositions.get(segment.bone)!
       piece.translate(
         segment.center[0] + joint.x,
@@ -271,6 +330,7 @@ export function createRiggedAthlete(
     new THREE.MeshBasicMaterial({ map: frontNumber ?? undefined, transparent: true, alphaTest: 0.08, depthWrite: false, toneMapped: false }),
     new THREE.MeshBasicMaterial({ map: backNumber ?? undefined, transparent: true, alphaTest: 0.08, depthWrite: false, toneMapped: false }),
     new THREE.MeshStandardMaterial({ color: '#633d36', roughness: 0.82 }), // lips
+    new THREE.MeshStandardMaterial({ color: '#e9ece5', roughness: 0.72 }), // goalkeeper gloves
   ]
   const mesh = new THREE.SkinnedMesh(geometry, materials)
   mesh.name = 'EFU_' + profile.id + '_SkinnedAthlete'
@@ -280,6 +340,19 @@ export function createRiggedAthlete(
   const skeleton = new THREE.Skeleton(boneList)
   mesh.bind(skeleton)
   mesh.normalizeSkinWeights()
+
+  // Neutral-pose geometry previously spanned ~2.2m for a simulated 1.82m
+  // player. Scale the complete rig to the actual anatomical profile, then
+  // align the boot sole with the existing Rapier collider's local ground.
+  geometry.computeBoundingBox()
+  const bounds = geometry.boundingBox!
+  const unscaledHeight = Math.max(0.1, bounds.max.y - bounds.min.y)
+  const modelScale = THREE.MathUtils.clamp(body.height / unscaledHeight, 0.65, 1.05)
+  mesh.scale.setScalar(modelScale)
+  // Each player's Rapier body is centered at profile.height / 2, not a
+  // constant: align the shoes with the actual pitch for every archetype.
+  mesh.position.y = -body.height / 2 - bounds.min.y * modelScale
+  mesh.updateMatrixWorld(true)
 
   return {
     mesh,

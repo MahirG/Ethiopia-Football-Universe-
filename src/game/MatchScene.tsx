@@ -324,7 +324,7 @@ export function MatchScene(props: MatchSceneProps) {
       <CinematicAtmosphere timeOfDay={props.timeOfDay} weather={props.weather} weatherIntensity={props.weatherIntensity} quality={props.quality} matchProgress={props.matchProgress} eventPulse={props.replayToken} presentationPhase={props.presentationPhase} />
       {(props.weather === 'rain' || props.weather === 'storm' || props.weather === 'snow') && <Rain count={Math.round(preset.rainDrops * (0.45 + props.weatherIntensity * 0.85))} intensity={props.weather === 'snow' ? props.weatherIntensity * 0.45 : props.weatherIntensity} />}
       <CameraRig mode={props.cameraMode} replayToken={props.replayToken} replayActive={props.replayActive} quality={props.quality} presentationPhase={props.presentationPhase} matchProgress={props.matchProgress} cameraShake={props.cameraShake} ballRef={ballRef} controlledPosition={controlledPosition} controls={controls} />
-      <AdaptiveDpr pixelated={props.quality === 'performance'} />
+      <AdaptiveDpr pixelated={false} />
     </Canvas>
   </div>
 }

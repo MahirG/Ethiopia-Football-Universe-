@@ -14,7 +14,7 @@ export interface QualityPreset {
 
 export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
   performance: {
-    dpr: [0.65, 1],
+    dpr: [0.78, 1],
     grassBlades: 0,
     crowdPerLongStand: 170,
     crowdPerShortStand: 95,

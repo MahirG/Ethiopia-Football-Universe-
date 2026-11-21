@@ -48,9 +48,17 @@ try {
   const positions = rig.mesh.geometry.getAttribute('position')
   const skinIndices = rig.mesh.geometry.getAttribute('skinIndex')
   const upperArmIndex = rig.mesh.skeleton.bones.indexOf(rig.bones.upperArmL)
+  // Tapered limb primitives start close to the shoulder pivot. Sampling the
+  // very first vertex is invalid: a vertex on the rotation axis barely moves.
+  // Sample the lowest (distal) vertex weighted to the upper-arm bone instead.
   let sample = -1
+  let lowestY = Infinity
   for (let index = 0; index < skinIndices.count; index += 1) {
-    if (skinIndices.getX(index) === upperArmIndex) { sample = index; break }
+    if (skinIndices.getX(index) !== upperArmIndex) continue
+    if (positions.getY(index) < lowestY) {
+      lowestY = positions.getY(index)
+      sample = index
+    }
   }
   assert.ok(sample >= 0, 'upper-arm vertices not weighted to their skeleton bone')
   const neutral = new THREE.Vector3().fromBufferAttribute(positions, sample)

@@ -32,7 +32,7 @@ assert.ok(css.includes('height:clamp(430px,76svh,720px)'), 'match canvas must do
 assert.ok(css.includes('.match-view>.game-shell{order:2}') &&
   css.includes('.match-view>.world-console{order:4}'),
   'game stage should appear before advanced venue controls')
-assert.ok(css.includes('.match-view .match-setup') &&
+assert.ok(css.includes('.match-view>.match-setup') &&
   css.includes('grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr)'),
   'team selection must be a readable compact matchup, not stacked desktop cards')
 assert.ok(css.includes('.match-view .match-environment-controls:not(.mobile-open){display:none!important}'),
