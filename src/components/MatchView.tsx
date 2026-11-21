@@ -31,6 +31,8 @@ import { useGlobalAudio } from '../audio/AudioProvider'
 import { useFootballAudio } from '../audio/useFootballAudio'
 import { UniversalControlsOverlay } from '../input/UniversalControlsOverlay'
 import { ControlSettingsPanel } from '../input/ControlSettingsPanel'
+import { MatchDeviceLab } from '../diagnostics/MatchDeviceLab'
+import type { FrameHealthSnapshot } from '../diagnostics/frameHealth'
 import { getActiveInputDevice, subscribeFootballAction, subscribeInputDevice } from '../input/bus'
 import type { InputDeviceKind } from '../input/types'
 import type {
@@ -137,6 +139,10 @@ export function MatchView() {
   const [worldSelection, setWorldSelection] = useLocalStorage<WorldSelection>('efu-world-selection', DEFAULT_WORLD_SELECTION)
   const [showAudioSettings, setShowAudioSettings] = useState(false)
   const [showControlSettings, setShowControlSettings] = useState(false)
+  const [showDeviceLab, setShowDeviceLab] = useState(false)
+  const [capturingHealth, setCapturingHealth] = useState(false)
+  const [healthSnapshot, setHealthSnapshot] = useState<FrameHealthSnapshot | null>(null)
+  const handleHealthSnapshot = useCallback((snapshot: FrameHealthSnapshot) => setHealthSnapshot(snapshot), [])
   const [activeInput, setActiveInput] = useState<InputDeviceKind>(() => getActiveInputDevice())
   const [showAudioDebug, setShowAudioDebug] = useState(false)
   const [sceneKey, setSceneKey] = useState(0)
@@ -519,6 +525,8 @@ export function MatchView() {
           onGoal={handleGoal}
           onEvent={handleSceneEvent}
           onAction={handleAction}
+          performanceActive={capturingHealth}
+          onPerformanceSample={handleHealthSnapshot}
           onTelemetry={setTelemetry}
           onHumanTelemetry={setHumanTelemetry}
           onAudioEvent={(event, context) => audio.emit(event, { ...context, scoreHome: score.home, scoreAway: score.away, matchMinute: score.time })}
@@ -590,6 +598,7 @@ export function MatchView() {
           <button className="secondary-button replay-button" onClick={() => beginReplay('Manual instant replay')} disabled={score.time === 0 || replayActive || presentationPhase !== 'live'}><Film size={17} /> Replay</button>
           <button className="secondary-button" onClick={reset}><RotateCcw size={17} /> Reset</button>
           <button className="secondary-button" onClick={() => setShowControlSettings(true)}><SlidersHorizontal size={17} /> Controls</button>
+          <button className="secondary-button" onClick={() => setShowDeviceLab(value => !value)} aria-expanded={showDeviceLab}><Activity size={17} /> Device Lab</button>
         </div>
 
         <div className="camera-picker" aria-label="Camera mode">
@@ -626,6 +635,8 @@ export function MatchView() {
           <label className="toggle-control"><input type="checkbox" checked={cameraShake} onChange={(event) => setCameraShake(event.target.checked)} /><span>Camera shake</span></label>
         </div>
       </section>
+
+      <MatchDeviceLab open={showDeviceLab} recording={capturingHealth} running={running && presentationPhase === 'live'} quality={quality} snapshot={healthSnapshot} onStart={() => { setHealthSnapshot(null); setCapturingHealth(true) }} onStop={() => setCapturingHealth(false)} onClose={() => setShowDeviceLab(false)} />
 
       <div className="dashboard-grid three phase-three-stats">
         <article className="stat-panel panel"><Activity /><div><span>Human biomechanics runtime</span><strong>22 independent football agents</strong><small>Weight transfer, acceleration limits, turn radius, foot planting, surface traction, fatigue, balance and context-sensitive imperfection</small></div></article>
