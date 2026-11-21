@@ -168,10 +168,11 @@ export function MatchView() {
     releaseAllVirtualInput()
     setRunning(false)
     setCapturingHealth(false)
-    setQuality('performance')
+    // Do not reconfigure the renderer while its WebGL context is lost.
+    // Graphics quality is reduced only after the user requests a safe restart.
     setRendererIssue(error instanceof Error ? 'A rendering error interrupted play.' : 'The 3D graphics context was interrupted.')
     setMessage('Graphics interrupted · match paused')
-  }, [setQuality])
+  }, [])
   const handleWebglLoss = useCallback(() => {
     setWebglLost(true)
     handleRendererFailure('WebGL context lost')
@@ -364,7 +365,7 @@ export function MatchView() {
   }, [audio, clearPhaseTimers, score.away, score.home, world.attendance.capacityRatio, world.competition.prestige, world.crowd.tension, world.venue.name, worldSelection.importance])
 
   const toggleMatch = useCallback(async () => {
-    if (replayActive || completedRef.current) return
+    if (replayActive || completedRef.current || rendererIssue) return
     if (running) {
       setRunning(false)
       setMessage('Match paused')
@@ -387,7 +388,7 @@ export function MatchView() {
         console.error('[match-resume-audio] Non-fatal audio failure', error)
       }
     }, 0)
-  }, [audio, presentationPhase, replayActive, running, score.away, score.home, score.time, startOpeningSequence])
+  }, [audio, presentationPhase, rendererIssue, replayActive, running, score.away, score.home, score.time, startOpeningSequence])
 
   useEffect(() => () => {
     if (replayTimerRef.current !== null) window.clearTimeout(replayTimerRef.current)
@@ -652,7 +653,7 @@ export function MatchView() {
 
       <section className="match-toolbar panel match-toolbar-3d phase-three-toolbar phase-four-toolbar">
         <div className="match-primary-actions">
-          <button className="primary-button" onClick={() => void toggleMatch()} disabled={replayActive || presentationPhase === 'intro' || presentationPhase === 'halftime' || presentationPhase === 'fulltime'}>
+          <button className="primary-button" onClick={() => void toggleMatch()} disabled={Boolean(rendererIssue) || replayActive || presentationPhase === 'intro' || presentationPhase === 'halftime' || presentationPhase === 'fulltime'}>
             {running ? <CirclePause size={18} /> : <CirclePlay size={18} />}
             {running ? 'Pause' : score.time > 0 ? 'Resume' : 'Start broadcast'}
           </button>
