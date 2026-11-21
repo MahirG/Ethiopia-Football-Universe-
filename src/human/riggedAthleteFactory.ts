@@ -34,7 +34,7 @@ interface Segment {
   material: number
   center: [number, number, number]
   radii: [number, number, number]
-  kind?: 'sphere' | 'taper' | 'front-number' | 'back-number'
+  kind?: 'sphere' | 'taper' | 'face' | 'front-number' | 'back-number'
   segments?: number
 }
 
@@ -101,6 +101,12 @@ export function createRiggedAthlete(
     previous.push({ material, bone: part, center, radii, segments: detail, kind: 'taper' })
     byMaterial.set(material, previous)
   }
+  function sculptedFace(center: Segment['center'], radii: Segment['radii']) {
+    const previous = byMaterial.get(2) ?? []
+    previous.push({ material: 2, bone: 'head', center, radii,
+      segments: Math.max(14, detail * 2), kind: 'face' })
+    byMaterial.set(2, previous)
+  }
 
   const shoulder = body.shoulderWidth
   const hip = body.hipWidth
@@ -112,10 +118,12 @@ export function createRiggedAthlete(
   ellipsoid(0, 'spine', [0, 0.24, 0], [shoulder * 0.55, 0.145, 0.17])
   taper(1, 'hips', [0, -body.torsoLength * 0.35, 0], [hip * 0.63, 0.245, 0.157])
   ellipsoid(6, 'spine', [0, body.torsoLength * 0.555, 0], [body.neckThickness * 0.96, 0.024, 0.107])
+  taper(2, 'spine',
+    [0, body.torsoLength * 0.69 + body.neckLength * 0.42, 0],
+    [body.neckThickness * 0.72, body.neckLength + 0.085, body.neckThickness * 0.71])
   // Athletic adult proportions (~one eighth of full height for the head).
   // A narrower jaw / skull replaces the huge doll-like head silhouette.
-  ellipsoid(2, 'head', [0, 0.008, 0], [0.174 * face.faceWidth, 0.196, 0.157])
-  ellipsoid(2, 'head', [0, -0.106, 0.015], [0.143 * face.jawWidth, 0.089, 0.138])
+  sculptedFace([0, -0.003, 0], [0.178 * face.faceWidth, 0.215, 0.161])
   ellipsoid(2, 'head', [0, -0.026, 0.146], [0.035 * face.noseWidth, 0.055 * face.noseLength, 0.037])
   for (const side of [-1, 1] as const) {
     ellipsoid(2, 'head', [side * 0.173, -0.035, 0], [0.021 * face.earScale, 0.048, 0.025])
@@ -247,6 +255,21 @@ export function createRiggedAthlete(
           ? new THREE.CylinderGeometry(1, 0.75, 1, Math.max(9, segment.segments ?? detail), 3)
           : new THREE.SphereGeometry(1, segment.segments ?? detail, Math.max(6, Math.floor((segment.segments ?? detail) * 0.77)))
       if (segment.kind === 'back-number') piece.rotateY(Math.PI)
+      if (segment.kind === 'face') {
+        // Reshape the UV sphere into one continuous skull/chin surface. An
+        // overlaid round jaw creates the toy-like cheeks in the old models.
+        const attribute = piece.getAttribute('position')
+        for (let i = 0; i < attribute.count; i += 1) {
+          const x = attribute.getX(i), y = attribute.getY(i), z = attribute.getZ(i)
+          // Jaw narrows into the chin; upper cheek and brow remain adult width.
+          const jaw = y < 0 ? 1 + y * 0.24 : 1
+          const cheek = z > 0 && y > -0.5 && y < 0.28
+            ? Math.sin((y + 0.5) / 0.78 * Math.PI) * 0.075 : 0
+          attribute.setXYZ(i, x * jaw, y, z * (1 + cheek))
+        }
+        attribute.needsUpdate = true
+        piece.computeVertexNormals()
+      }
       if (segment.kind !== 'front-number' && segment.kind !== 'back-number') piece.scale(...segment.radii)
       const joint = bindPositions.get(segment.bone)!
       piece.translate(
