@@ -216,9 +216,9 @@ export function HumanPlayerVisual({ profile, runtime, motion, kitColor, secondar
         <meshStandardMaterial color={socks} roughness={0.7} />
       </mesh>)}
     </group>
-    {controlled && <mesh position={[0, body.height * 0.72, 0]} rotation={[0, 0, Math.PI]}>
-      <coneGeometry args={[0.17, 0.3, 4]} />
-      <meshStandardMaterial color="#f5d03b" emissive="#d99d12" emissiveIntensity={0.82} />
+    {controlled && <mesh position={[0, body.height * 0.65, 0]} rotation={[0, 0, Math.PI]}>
+      <coneGeometry args={[0.09, 0.14, 3]} />
+      <meshStandardMaterial color="#f5d03b" emissive="#d99d12" emissiveIntensity={0.42} />
     </mesh>}
   </group>
 }
