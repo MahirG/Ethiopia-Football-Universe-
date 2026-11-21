@@ -32,8 +32,10 @@ import { useFootballAudio } from '../audio/useFootballAudio'
 import { UniversalControlsOverlay } from '../input/UniversalControlsOverlay'
 import { ControlSettingsPanel } from '../input/ControlSettingsPanel'
 import { MatchDeviceLab } from '../diagnostics/MatchDeviceLab'
+import { MatchSceneErrorBoundary } from '../runtime/MatchSceneSafety'
+import { recordClientFailure } from '../runtime/kickoffSafety'
 import type { FrameHealthSnapshot } from '../diagnostics/frameHealth'
-import { getActiveInputDevice, subscribeFootballAction, subscribeInputDevice } from '../input/bus'
+import { getActiveInputDevice, releaseAllVirtualInput, subscribeFootballAction, subscribeInputDevice } from '../input/bus'
 import type { InputDeviceKind } from '../input/types'
 import type {
   Difficulty,
@@ -140,6 +142,8 @@ export function MatchView() {
   const [showAudioSettings, setShowAudioSettings] = useState(false)
   const [showControlSettings, setShowControlSettings] = useState(false)
   const [showDeviceLab, setShowDeviceLab] = useState(false)
+  const [rendererIssue, setRendererIssue] = useState<string | null>(null)
+  const [webglLost, setWebglLost] = useState(false)
   const [capturingHealth, setCapturingHealth] = useState(false)
   const [healthSnapshot, setHealthSnapshot] = useState<FrameHealthSnapshot | null>(null)
   const handleHealthSnapshot = useCallback((snapshot: FrameHealthSnapshot) => setHealthSnapshot(snapshot), [])
@@ -157,6 +161,32 @@ export function MatchView() {
   const [telemetry, setTelemetry] = useState<MatchTelemetry>(INITIAL_TELEMETRY)
   const [humanTelemetry, setHumanTelemetry] = useState<HumanTelemetry>(INITIAL_HUMAN_TELEMETRY)
   const [message, setMessage] = useState('Ready for broadcast')
+  const handleRendererFailure = useCallback((error: Error | string) => {
+    // Keep the score and match clock in React state; only the WebGL scene is reset.
+    recordClientFailure('match-renderer', error)
+    releaseAllVirtualInput()
+    setRunning(false)
+    setCapturingHealth(false)
+    setQuality('performance')
+    setRendererIssue(error instanceof Error ? 'A rendering error interrupted play.' : 'The 3D graphics context was interrupted.')
+    setMessage('Graphics interrupted · match paused')
+  }, [setQuality])
+  const handleWebglLoss = useCallback(() => {
+    setWebglLost(true)
+    handleRendererFailure('WebGL context lost')
+  }, [handleRendererFailure])
+  const handleWebglRestoration = useCallback(() => {
+    setWebglLost(false)
+  }, [])
+  const restartRenderer = useCallback(() => {
+    releaseAllVirtualInput()
+    setRunning(false)
+    setQuality('performance')
+    setWebglLost(false)
+    setRendererIssue(null)
+    setSceneKey((value) => value + 1)
+    setMessage('Graphics restarted in Performance mode · resume when ready')
+  }, [setQuality])
   const [records, setRecords] = useLocalStorage<MatchRecord[]>('efu-match-history', [])
   const home = useMemo(() => premierClubs.find((item) => item.id === homeId) ?? premierClubs[0], [homeId])
   const away = useMemo(() => premierClubs.find((item) => item.id === awayId) ?? premierClubs[1], [awayId])
@@ -360,9 +390,16 @@ export function MatchView() {
 
   useEffect(() => {
     if (!running) return
+    // The match simulation remains at 60 Hz; React's large 3D/scoreboard tree
+    // does not need a full update ten times a second on constrained Android GPUs.
+    let lastTick = performance.now()
     const interval = window.setInterval(() => {
-      setScore((current) => ({ ...current, time: Math.min(90, current.time + MATCH_MINUTES_PER_SECOND / 10) }))
-    }, 100)
+      const now = performance.now()
+      const elapsedSeconds = Math.min(0.5, Math.max(0, (now - lastTick) / 1000))
+      lastTick = now
+      if (elapsedSeconds === 0) return
+      setScore((current) => ({ ...current, time: Math.min(90, current.time + MATCH_MINUTES_PER_SECOND * elapsedSeconds) }))
+    }, 250)
     return () => window.clearInterval(interval)
   }, [running])
 
@@ -498,6 +535,7 @@ export function MatchView() {
         )}
         {audioSettings.visualIndicators && audio.profile?.lastEvents[0] && <div className="sound-indicator">◉ {audio.profile.lastEvents[0]}</div>}
 
+        <MatchSceneErrorBoundary key={sceneKey} onFailure={handleRendererFailure}>
         <MatchScene
           key={sceneKey}
           running={running}
@@ -527,10 +565,20 @@ export function MatchView() {
           onAction={handleAction}
           performanceActive={capturingHealth}
           onPerformanceSample={handleHealthSnapshot}
+          onRendererContextLost={handleWebglLoss}
+          onRendererContextRestored={handleWebglRestoration}
           onTelemetry={setTelemetry}
           onHumanTelemetry={setHumanTelemetry}
           onAudioEvent={(event, context) => audio.emit(event, { ...context, scoreHome: score.home, scoreAway: score.away, matchMinute: score.time })}
         />
+        </MatchSceneErrorBoundary>
+        {rendererIssue && (
+          <section className="match-recovery-panel" role="alert">
+            <strong>{webglLost ? 'Graphics connection lost' : 'Match paused for safety'}</strong>
+            <p>{rendererIssue} Your score and match time are preserved, but player positions will restart. Please retry in Performance mode.</p>
+            <button type="button" onClick={restartRenderer}>Restart 3D graphics</button>
+          </section>
+        )}
 
         {(presentationPhase === 'intro' || presentationPhase === 'halftime' || presentationPhase === 'fulltime') && (
           <div className={`cinematic-package package-${presentationPhase}`}>
