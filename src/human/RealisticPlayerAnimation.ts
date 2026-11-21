@@ -119,8 +119,6 @@ export function useRealisticPlayerAnimation(options: Options) {
     if (celebrationTeam === runtime.team && presentationPhase !== 'idle') {
       if (refs.leftArm.current) refs.leftArm.current.rotation.x = -2.3
       if (refs.rightArm.current) refs.rightArm.current.rotation.x = profile.movement.celebrationStyle === 3 ? -0.6 : -2.3
-      if (refs.fieldLeftArm.current) refs.fieldLeftArm.current.rotation.x = -2.3
-      if (refs.fieldRightArm.current) refs.fieldRightArm.current.rotation.x = -2.3
     }
 
     if (updateFace) {
