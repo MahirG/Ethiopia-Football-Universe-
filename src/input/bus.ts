@@ -9,6 +9,7 @@ export const DEFAULT_CONTROL_SETTINGS: ControlSettings = {
   touchScale: 1,
   touchOpacity: 0.78,
   touchSensitivity: 1,
+  joystickDeadZone: 0.09,
   gamepadDeadZone: 0.16,
   gamepadSensitivity: 1,
   haptics: true,
