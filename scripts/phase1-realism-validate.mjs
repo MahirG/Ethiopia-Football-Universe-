@@ -49,5 +49,9 @@ for (const label of ['highLodRef', 'fieldLodRef', 'lowLodRef']) {
 assert.ok(anim.includes('selectAthleteLod'), 'animation must drive LOD switching')
 assert.ok(anim.includes("lod === 'field'"), 'animated medium player must be selected in match')
 assert.ok(visual.includes('fieldLeftLegRef') && visual.includes('fieldRightArmRef'), 'mid detail limbs must be animated')
+const parts = readFileSync(new URL('../src/human/RealisticPlayerParts.tsx', import.meta.url), 'utf8')
+assert.ok(parts.includes('resolution: 128 | 256 | 512'), 'texture resolution must be bounded')
+assert.ok(parts.includes('texture.generateMipmaps = resolution > 128'), 'mobile profile must avoid unnecessary mipmaps')
+assert.ok(visual.includes("quality === 'ultra' ? 512 : quality === 'balanced' ? 256 : 128"), 'quality must control texture budget')
 
-console.log('EFU Phase 1: LOD thresholds, hysteresis, 22 stable athlete profiles, and renderer wiring validated.')
+console.log('EFU Phase 1: LOD thresholds, hysteresis, 22 stable athlete profiles, texture budgets, and renderer wiring validated.')
