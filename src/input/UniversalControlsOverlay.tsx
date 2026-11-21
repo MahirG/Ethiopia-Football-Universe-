@@ -123,10 +123,11 @@ export function UniversalControlsOverlay({ enabled }: UniversalControlsOverlayPr
   const [settings, setSettings] = useState<ControlSettings>(() => getControlSettings())
   const [activeDevice, setActiveDevice] = useState(() => getActiveInputDevice())
   const padRef = useRef<HTMLDivElement>(null)
+  const knobRef = useRef<HTMLSpanElement>(null)
   const activePointer = useRef<number | null>(null)
   const joystickOrigin = useRef({ x: 0, y: 0 })
   const [origin, setOrigin] = useState({ x: 0, y: 0 })
-  const [knob, setKnob] = useState({ x: 0, y: 0, active: false })
+  const [joystickActive, setJoystickActive] = useState(false)
 
   useEffect(() => subscribeControlSettings(setSettings), [])
   useEffect(() => subscribeInputDevice(setActiveDevice), [])
@@ -136,7 +137,8 @@ export function UniversalControlsOverlay({ enabled }: UniversalControlsOverlayPr
     activePointer.current = null
     joystickOrigin.current = { x: 0, y: 0 }
     setOrigin({ x: 0, y: 0 })
-    setKnob({ x: 0, y: 0, active: false })
+    setJoystickActive(false)
+    if (knobRef.current) knobRef.current.style.transform = 'translate(0px, 0px)'
     setVirtualMovement(0, 0)
   }
   useEffect(() => {
@@ -144,7 +146,8 @@ export function UniversalControlsOverlay({ enabled }: UniversalControlsOverlayPr
     activePointer.current = null
     joystickOrigin.current = { x: 0, y: 0 }
     setOrigin({ x: 0, y: 0 })
-    setKnob({ x: 0, y: 0, active: false })
+    setJoystickActive(false)
+    if (knobRef.current) knobRef.current.style.transform = 'translate(0px, 0px)'
     releaseAllVirtualInput()
   }, [enabled])
 
@@ -153,7 +156,8 @@ export function UniversalControlsOverlay({ enabled }: UniversalControlsOverlayPr
       activePointer.current = null
       joystickOrigin.current = { x: 0, y: 0 }
       setOrigin({ x: 0, y: 0 })
-      setKnob({ x: 0, y: 0, active: false })
+      setJoystickActive(false)
+      if (knobRef.current) knobRef.current.style.transform = 'translate(0px, 0px)'
       releaseAllVirtualInput()
     }
     const onVisibility = () => {
@@ -176,7 +180,9 @@ export function UniversalControlsOverlay({ enabled }: UniversalControlsOverlayPr
     const dx = event.clientX - (rect.left + rect.width / 2 + joystickOrigin.current.x)
     const dy = event.clientY - (rect.top + rect.height / 2 + joystickOrigin.current.y)
     const stick = projectTouchStick(dx, dy, radius, settings.joystickDeadZone, settings.touchSensitivity)
-    setKnob({ x: stick.offsetX, y: stick.offsetY, active: true })
+    // Move the visual knob without a React render on every Android pointermove.
+    if (knobRef.current) knobRef.current.style.transform =
+      `translate(${joystickOrigin.current.x + stick.offsetX}px, ${joystickOrigin.current.y + stick.offsetY}px)`
     setVirtualMovement(stick.x, stick.z)
   }
 
@@ -201,7 +207,7 @@ export function UniversalControlsOverlay({ enabled }: UniversalControlsOverlayPr
     >
       <div
         ref={padRef}
-        className={`universal-joystick ${settings.joystickMode} ${knob.active ? 'is-active' : ''}`}
+        className={`universal-joystick ${settings.joystickMode} ${joystickActive ? 'is-active' : ''}`}
         role="application"
         aria-label="Movement joystick. Drag to move player."
         onPointerDown={(event) => {
@@ -217,6 +223,7 @@ export function UniversalControlsOverlay({ enabled }: UniversalControlsOverlayPr
           } : { x: 0, y: 0 }
           joystickOrigin.current = shift
           setOrigin(shift)
+          setJoystickActive(true)
           updateJoystick(event)
           safelyCapturePointer(event.currentTarget, event.pointerId)
           pulseHaptic(8)
@@ -230,7 +237,7 @@ export function UniversalControlsOverlay({ enabled }: UniversalControlsOverlayPr
         }}
       >
         <span className="joystick-ring" style={{ transform: `translate(${origin.x}px, ${origin.y}px)` }} />
-        <span className={`joystick-knob ${knob.active ? 'active' : ''}`} style={{ transform: `translate(${origin.x + knob.x}px, ${origin.y + knob.y}px)` }} />
+        <span ref={knobRef} className={`joystick-knob ${joystickActive ? 'active' : ''}`} />
       </div>
       <div className="universal-action-cluster" aria-label="Football actions">
         <ActionButton action="through-pass" label="THRU" className="action-through" />
