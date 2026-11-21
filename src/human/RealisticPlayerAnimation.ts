@@ -76,9 +76,13 @@ export function useRealisticPlayerAnimation(options: Options) {
 
     root.getWorldPosition(worldPosition.current)
     const distance = camera.position.distanceTo(worldPosition.current)
-    const lod = selectAthleteLod(distance, quality, controlled, previousLod.current)
-    previousLod.current = lod
-    if (refs.highLod.current) refs.highLod.current.visible = lod === 'hero'
+    const selectedLod = selectAthleteLod(distance, quality, controlled, previousLod.current)
+    previousLod.current = selectedLod
+    // The original close-up "hero" is a capsule/primitive prototype.
+    // Never surface it in real gameplay: use the anatomically revised,
+    // genuinely skinned 13-bone footballer at all close/controlled distances.
+    const lod: AthleteLod = selectedLod === 'hero' ? 'field' : selectedLod
+    if (refs.highLod.current) refs.highLod.current.visible = false
     if (refs.fieldLod.current) refs.fieldLod.current.visible = lod === 'field'
     if (refs.lowLod.current) refs.lowLod.current.visible = lod === 'distance'
 
