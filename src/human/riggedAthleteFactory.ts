@@ -111,14 +111,33 @@ export function createRiggedAthlete(
   for (const side of [-1, 1] as const) {
     ellipsoid(2, 'head', [side * 0.198, -0.035, 0], [0.032 * face.earScale, 0.058, 0.032])
     ellipsoid(7, 'head', [side * 0.074 * face.eyeSpacing, 0.047, 0.174], [0.025, 0.013, 0.011], 8)
+    // Eyebrows and upper cheek planes preserve expressions in normal field views.
+    if (quality !== 'performance') {
+      ellipsoid(5, 'head', [side * 0.075 * face.eyeSpacing, 0.093, 0.165],
+        [0.039, 0.010, 0.009], 8)
+      ellipsoid(2, 'head', [side * 0.064, -0.064, 0.132],
+        [0.063, 0.035 * face.cheekHeight, 0.026], 8)
+    }
+  }
+  if (quality !== 'performance') {
+    ellipsoid(10, 'head', [0, -0.128, 0.170], [0.049 * face.lipFullness, 0.012, 0.009], 8)
+    if (face.beardStyle !== 'none') {
+      ellipsoid(5, 'head', [0, -0.168, 0.129],
+        [0.090 * face.jawWidth, face.beardStyle === 'goatee' ? 0.036 : 0.054, 0.032], 9)
+    }
   }
   const hairHeight = face.hairStyle === 'afro' ? 0.125 : face.hairStyle === 'shaved' ? 0.022 : 0.065
   ellipsoid(5, 'head', [0, 0.18 + hairHeight * 0.28, -0.011], [0.194 * face.faceWidth, hairHeight + 0.029, 0.182])
-  if (face.hairStyle === 'afro' || face.hairStyle === 'coiled') {
-    for (let index = 0; index < 7; index += 1) {
-      const angle = index / 7 * Math.PI * 2
+  if (face.hairStyle === 'afro' || face.hairStyle === 'coiled' || face.hairStyle === 'short-curl') {
+    for (let index = 0; index < (quality === 'ultra' ? 10 : 6); index += 1) {
+      const angle = index / (quality === 'ultra' ? 10 : 6) * Math.PI * 2
       ellipsoid(5, 'head', [Math.cos(angle) * 0.125, 0.218 + index % 3 * 0.025, Math.sin(angle) * 0.122],
         [0.055, 0.052, 0.055], 7)
+    }
+  } else if (face.hairStyle === 'braids' && quality !== 'performance') {
+    for (let index = 0; index < 6; index += 1) {
+      const x = (index - 2.5) * 0.055
+      ellipsoid(5, 'head', [x, 0.222, -0.02], [0.020, 0.026, 0.14], 8)
     }
   }
 
@@ -138,6 +157,19 @@ export function createRiggedAthlete(
     ellipsoid(3, shin, [0, -body.lowerLegLength * 0.68, 0], [thighWidth * 0.66, body.lowerLegLength * 0.35, thighWidth * 0.67])
     ellipsoid(4, foot, [0, -0.04, body.footLength * 0.27], [0.104, 0.084, body.footLength * 0.61])
     ellipsoid(6, foot, [0, 0.017, body.footLength * 0.56], [0.061, 0.008, body.footLength * 0.22], 7)
+    // A restrained kit identity: sleeve cuffs, short piping, sock bands, boots.
+    ellipsoid(6, upperArm, [0, -body.upperArmLength * 0.51, 0],
+      [armWidth * 1.10, 0.018, armWidth * 1.11], 8)
+    ellipsoid(6, thigh, [side * 0.021, -body.upperLegLength * 0.19, thighWidth * 0.88],
+      [0.014, body.upperLegLength * 0.17, 0.014], 7)
+    ellipsoid(6, shin, [0, -body.lowerLegLength * 0.56, 0],
+      [thighWidth * 0.67, 0.018, thighWidth * 0.69], 8)
+    if (quality !== 'performance') {
+      for (let index = 0; index < 3; index += 1) {
+        ellipsoid(6, foot, [0, 0.055, body.footLength * (0.25 + index * 0.14)],
+          [0.055, 0.005, 0.008], 7)
+      }
+    }
   }
 
   // Jersey number planes use the already-generated per-player textures; ownership
@@ -154,6 +186,30 @@ export function createRiggedAthlete(
   }
 
   const geometry = new THREE.BufferGeometry()
+  // Joint-transition weights reduce separation between rigid limb segments.
+  // Bind transforms remain neutral, preserving the exact original skeleton.
+  function jointBlend(part: AthleteBoneName, localY: number): [AthleteBoneName | null, number] {
+    const width = 0.145
+    if (part === 'upperArmL' || part === 'upperArmR') {
+      const next = part === 'upperArmL' ? 'lowerArmL' : 'lowerArmR'
+      const influence = THREE.MathUtils.clamp((-localY - (body.upperArmLength - width)) / width, 0, 1) * 0.52
+      return [next, influence]
+    }
+    if (part === 'lowerArmL' || part === 'lowerArmR') {
+      const parent = part === 'lowerArmL' ? 'upperArmL' : 'upperArmR'
+      return [parent, THREE.MathUtils.clamp((localY + width) / width, 0, 1) * 0.52]
+    }
+    if (part === 'thighL' || part === 'thighR') {
+      const next = part === 'thighL' ? 'shinL' : 'shinR'
+      return [next, THREE.MathUtils.clamp((-localY - (body.upperLegLength - width)) / width, 0, 1) * 0.52]
+    }
+    if (part === 'shinL' || part === 'shinR') {
+      const parent = part === 'shinL' ? 'thighL' : 'thighR'
+      return [parent, THREE.MathUtils.clamp((localY + width) / width, 0, 1) * 0.52]
+    }
+    return [null, 0]
+  }
+
   const positions: number[] = []
   const normals: number[] = []
   const uvs: number[] = []
@@ -183,8 +239,10 @@ export function createRiggedAthlete(
         positions.push(p.getX(i), p.getY(i), p.getZ(i))
         normals.push(n.getX(i), n.getY(i), n.getZ(i))
         uvs.push(uv.getX(i), uv.getY(i))
-        boneIndices.push(boneIndex, 0, 0, 0)
-        weights.push(1, 0, 0, 0)
+        const [secondary, blend] = jointBlend(segment.bone, p.getY(i) - joint.y)
+        const secondaryIndex = secondary ? boneList.indexOf(bones[secondary]) : 0
+        boneIndices.push(boneIndex, secondaryIndex, 0, 0)
+        weights.push(1 - blend, blend, 0, 0)
       }
       const idx = piece.getIndex()
       if (idx) for (let i = 0; i < idx.count; i += 1) indices.push(idx.getX(i) + nextVertex)
@@ -212,6 +270,7 @@ export function createRiggedAthlete(
     new THREE.MeshStandardMaterial({ color: face.eyeTone, roughness: 0.73 }),
     new THREE.MeshBasicMaterial({ map: frontNumber ?? undefined, transparent: true, alphaTest: 0.08, depthWrite: false, toneMapped: false }),
     new THREE.MeshBasicMaterial({ map: backNumber ?? undefined, transparent: true, alphaTest: 0.08, depthWrite: false, toneMapped: false }),
+    new THREE.MeshStandardMaterial({ color: '#633d36', roughness: 0.82 }), // lips
   ]
   const mesh = new THREE.SkinnedMesh(geometry, materials)
   mesh.name = 'EFU_' + profile.id + '_SkinnedAthlete'
