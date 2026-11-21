@@ -143,6 +143,7 @@ export function MatchView() {
   const [showAudioSettings, setShowAudioSettings] = useState(false)
   const [showControlSettings, setShowControlSettings] = useState(false)
   const [showDeviceLab, setShowDeviceLab] = useState(false)
+  const [showAdvancedMobileSettings, setShowAdvancedMobileSettings] = useState(false)
   const [rendererIssue, setRendererIssue] = useState<string | null>(null)
   const [webglLost, setWebglLost] = useState(false)
   const [capturingHealth, setCapturingHealth] = useState(false)
@@ -539,6 +540,17 @@ export function MatchView() {
         </div>
 
         <div className="camera-status"><Camera size={13} /><span>{sceneCameraMode} · {phaseLabel}</span></div>
+        {presentationPhase === 'idle' && score.time === 0 && !rendererIssue && (
+          <div className="matchday-mobile-kickoff">
+            <span className="matchday-kickoff-kicker">ETHIOPIAN FOOTBALL UNIVERSE</span>
+            <strong>{home.shortName} <span>VS</span> {away.shortName}</strong>
+            <p>{world.competition.shortName} · {world.venue.name}</p>
+            <button type="button" onClick={() => void toggleMatch()} aria-label="Kick off the football match">
+              <CirclePlay size={22} /> KICK OFF
+            </button>
+            <small>Play with on-screen controls after kick-off</small>
+          </div>
+        )}
         {replayActive && <div className="replay-watermark"><Film size={14} /> INSTANT REPLAY</div>}
         <div className="match-event-banner">{message}</div>
         {commentaryCaption && (
@@ -655,7 +667,7 @@ export function MatchView() {
         <div className="match-primary-actions">
           <button className="primary-button" onClick={() => void toggleMatch()} disabled={Boolean(rendererIssue) || replayActive || presentationPhase === 'intro' || presentationPhase === 'halftime' || presentationPhase === 'fulltime'}>
             {running ? <CirclePause size={18} /> : <CirclePlay size={18} />}
-            {running ? 'Pause' : score.time > 0 ? 'Resume' : 'Start broadcast'}
+            {running ? 'Pause' : score.time > 0 ? 'Resume' : 'Kick off'}
           </button>
           <button className="secondary-button replay-button" onClick={() => beginReplay('Manual instant replay')} disabled={score.time === 0 || replayActive || presentationPhase !== 'live'}><Film size={17} /> Replay</button>
           <button className="secondary-button" onClick={reset}><RotateCcw size={17} /> Reset</button>
@@ -677,7 +689,12 @@ export function MatchView() {
           ))}
         </div>
 
-        <div className="match-environment-controls phase-three-controls">
+        <button type="button" className="match-mobile-settings-toggle" aria-expanded={showAdvancedMobileSettings}
+          aria-controls="match-advanced-environment"
+          onClick={() => setShowAdvancedMobileSettings(open => !open)}>
+          <SlidersHorizontal size={16} /> {showAdvancedMobileSettings ? 'Hide match settings' : 'Graphics, weather & audio'}
+        </button>
+        <div id="match-advanced-environment" className={`match-environment-controls phase-three-controls ${showAdvancedMobileSettings ? 'mobile-open' : ''}`}>
           <label>Difficulty<select value={difficulty} onChange={(event) => setDifficulty(event.target.value as Difficulty)}><option>Academy</option><option>Professional</option><option>Legendary</option></select></label>
           <label>Light<select value={timeOfDay} onChange={(event) => setTimeOfDay(event.target.value as TimeOfDay)}><option value="dynamic">Dynamic match</option><option value="dawn">Dawn</option><option value="morning">Morning</option><option value="midday">Midday</option><option value="afternoon">Afternoon</option><option value="golden">Golden hour</option><option value="sunset">Sunset</option><option value="evening">Evening</option><option value="night">Night</option><option value="late-night">Late night</option></select></label>
           <label>Graphics<select value={quality} onChange={(event) => setQuality(event.target.value as QualityLevel)}><option value="performance">Performance</option><option value="balanced">Balanced</option><option value="ultra">Ultra</option></select></label>

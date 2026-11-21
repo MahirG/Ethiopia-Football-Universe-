@@ -1,0 +1,382 @@
+/* EFU Matchday Mobile v2 — game-first responsive treatment.
+   This is UI, not a replacement for professional GLB footballer assets. */
+.matchday-mobile-kickoff,.match-mobile-settings-toggle{display:none}
+@media(max-width:700px){
+  .view-match .content-area{
+    padding:8px 8px max(24px,env(safe-area-inset-bottom));
+    width:100%;
+    max-width:100%;
+  }
+  .match-view{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    min-width:0;
+  }
+  .match-view>.page-title-row{order:0;gap:0;padding:2px 3px 1px}
+  .match-view>.page-title-row h1{
+    margin:0;
+    font-size:clamp(18px,5.5vw,24px);
+    letter-spacing:-.04em;
+    line-height:1.2
+  }
+  .match-view>.page-title-row p,
+  .match-view>.page-title-row .section-kicker,
+  .match-view>.page-title-row .title-actions{display:none}
+  .match-view>.match-setup{order:1}
+  .match-view>.game-shell{order:2}
+  .match-view>.match-toolbar{order:3}
+  .match-view>.world-console{order:4}
+  .match-view>.device-lab{order:5}
+  .match-view>.phase-three-stats{order:7}
+  .match-view>.history-panel{order:8}
+  .match-view>.match-setup{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr);
+    align-items:center;
+    gap:5px;
+    padding:9px;
+    background:linear-gradient(110deg,rgba(13,47,34,.96),rgba(10,28,20,.98));
+    border:1px solid rgba(233,192,102,.35);
+    color:#f5f4ec;
+    border-radius:13px;
+    box-shadow:0 9px 23px #0002;
+  }
+  .match-view .team-selector,
+  .match-view .team-selector.away{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:6px;
+    direction:ltr;
+    min-width:0;
+  }
+  .match-view .team-selector>span{
+    color:#dac78e;
+    font-size:10px;
+    letter-spacing:.12em;
+    font-weight:800
+  }
+  .match-view .team-selector .mini-crest{display:none}
+  .match-view .team-selector select{
+    display:block;
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    min-height:42px;
+    border:1px solid rgba(238,210,140,.38);
+    border-radius:10px;
+    background:#162f24;
+    color:#f8f4e7;
+    font-size:clamp(11px,3.2vw,13px);
+    font-weight:750;
+    padding:5px 24px 5px 8px;
+    text-overflow:ellipsis;
+  }
+  .match-view .match-versus{
+    min-width:0;
+    width:100%;
+    padding:0;
+    gap:0;
+    border:0;
+    color:#f1ca79;
+    align-self:center
+  }
+  .match-view .match-versus strong{font-size:18px;line-height:1}
+  .match-view .match-versus small,
+  .match-view .match-versus span{display:none}
+  .match-view>.game-shell{
+    height:clamp(430px,76svh,720px);
+    min-height:430px;
+    border-radius:16px;
+    border-color:rgba(234,192,109,.55);
+    box-shadow:0 14px 48px #0007;
+    background:#071b11;
+    isolation:isolate;
+  }
+  .match-view>.game-shell .phase4-match-stage{
+    position:relative;
+    width:100%;
+    height:100%;
+    min-height:100%;
+    overflow:hidden;
+  }
+  .match-view>.game-shell canvas,
+  .match-view>.game-shell .match-canvas{
+    position:absolute!important;
+    inset:0;
+    width:100%!important;
+    height:100%!important;
+    aspect-ratio:auto!important;
+    object-fit:cover;
+  }
+  .match-view>.game-shell .world-broadcast-tag{
+    top:10px;
+    left:10px;
+    max-width:calc(50% - 12px);
+    padding:6px 8px;
+    font-size:10px;
+    border-radius:10px;
+    background:rgba(3,15,10,.83);
+  }
+  .match-view>.game-shell .world-broadcast-tag strong{
+    display:block;
+    font-size:10px;
+    line-height:1.2;
+  }
+  .match-view>.game-shell .world-broadcast-tag small,
+  .match-view>.game-shell .world-atmosphere-strip{
+    display:none;
+  }
+  .match-view>.game-shell .broadcast-scorebug{
+    position:absolute;
+    z-index:12;
+    top:9px;
+    left:50%;
+    right:auto;
+    transform:translateX(-50%);
+    width:auto;
+    min-width:min(51%,185px);
+    max-width:calc(100% - 20px);
+    padding:8px 10px;
+    border:1px solid rgba(242,213,144,.52);
+    border-radius:11px;
+    background:rgba(2,15,9,.94);
+    box-shadow:0 7px 23px #0007;
+    gap:8px;
+    justify-content:center;
+    font-weight:850;
+  }
+  .match-view>.game-shell .broadcast-scorebug strong{
+    color:#f0c978;
+    font-size:clamp(13px,3.8vw,18px);
+  }
+  .match-view>.game-shell .broadcast-scorebug .broadcast-team{
+    font-size:clamp(8px,2.5vw,11px);
+    font-weight:850;
+    color:#f7f4e5;
+  }
+  .match-view>.game-shell .broadcast-scorebug .broadcast-clock{
+    font-size:10px;
+    color:#f1d992;
+    font-variant-numeric:tabular-nums;
+  }
+  .match-view>.game-shell .camera-status,
+  .match-view>.game-shell .broadcast-tech-strip,
+  .match-view>.game-shell .broadcast-lower-third{
+    display:none!important;
+  }
+  .match-view>.game-shell .match-event-banner{
+    top:58px;
+    left:50%;
+    right:auto;
+    transform:translateX(-50%);
+    max-width:78%;
+    white-space:normal;
+    text-align:center;
+    font-size:10px;
+    line-height:1.25;
+    pointer-events:none;
+  }
+  .matchday-mobile-kickoff{
+    display:flex;
+    position:absolute;
+    z-index:15;
+    left:50%;
+    bottom:max(48px,12%);
+    transform:translateX(-50%);
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    width:min(86%,320px);
+    padding:22px 16px;
+    text-align:center;
+    border:1px solid rgba(245,210,137,.67);
+    border-radius:20px;
+    background:linear-gradient(150deg,rgba(15,53,35,.97),rgba(2,19,11,.96));
+    box-shadow:0 18px 50px #000a;
+    color:#fff6df;
+  }
+  .matchday-kickoff-kicker{
+    font-size:9px;
+    line-height:1.3;
+    letter-spacing:.13em;
+    font-weight:850;
+    color:#f0d593;
+  }
+  .matchday-mobile-kickoff strong{
+    font-size:clamp(19px,5.6vw,25px);
+    line-height:1.2;
+    color:#fff9ef;
+    letter-spacing:-.025em;
+  }
+  .matchday-mobile-kickoff strong span{
+    color:#d2ad5f;
+    font-size:.7em;
+    padding:0 3px;
+  }
+  .matchday-mobile-kickoff p{
+    font-size:11px;
+    color:#bfd8c3;
+    margin:0;
+    line-height:1.45;
+  }
+  .matchday-mobile-kickoff button{
+    width:100%;
+    min-height:53px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:10px;
+    margin-top:5px;
+    color:#102e1d;
+    font-size:15px;
+    font-weight:950;
+    letter-spacing:.08em;
+    border:1px solid #ffe9b7;
+    border-radius:12px;
+    background:linear-gradient(135deg,#f8d991,#dfb560);
+    box-shadow:0 8px 24px rgba(0,0,0,.28);
+    touch-action:manipulation;
+  }
+  .matchday-mobile-kickoff small{
+    color:#b7cfb9;
+    font-size:10px;
+    line-height:1.4;
+  }
+  .matchday-mobile-kickoff button:focus-visible{
+    outline:3px solid #fff;
+    outline-offset:3px;
+  }
+  .match-view>.match-toolbar{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    padding:10px;
+    gap:10px;
+    border-radius:14px;
+    background:var(--panel);
+  }
+  .match-view .match-primary-actions{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px;
+    width:100%;
+    min-width:0;
+  }
+  .match-view .match-primary-actions>button{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    min-width:0;
+    min-height:44px;
+    padding:8px 5px;
+    font-size:clamp(9px,2.65vw,11px);
+    border-radius:10px;
+    white-space:normal;
+  }
+  .match-view .match-primary-actions>button:first-child{
+    grid-column:span 2;
+    font-size:clamp(12px,3.1vw,14px);
+    font-weight:850;
+  }
+  .match-view .match-primary-actions>button svg{
+    width:15px;
+    height:15px;
+    flex-shrink:0;
+  }
+  .match-view .camera-picker{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:5px;
+    width:100%;
+    min-width:0;
+  }
+  .match-view .camera-picker button{
+    min-height:42px;
+    min-width:0;
+    padding:6px 2px;
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    justify-content:center;
+    align-items:center;
+    font-size:9px;
+    border-radius:9px;
+  }
+  .match-view .camera-picker button span{font-size:9px}
+  .match-mobile-settings-toggle{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:8px;
+    min-height:44px;
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:11px;
+    color:var(--text);
+    background:var(--panel-muted);
+    font-size:12px;
+    font-weight:750;
+  }
+  .match-view .match-environment-controls:not(.mobile-open){display:none!important}
+  .match-view .match-environment-controls.mobile-open{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    padding-top:9px;
+    border-top:1px solid var(--line);
+  }
+  .match-view .match-environment-controls.mobile-open label{
+    display:flex;
+    flex:1 1 45%;
+    min-width:125px;
+    flex-direction:column;
+    align-items:stretch;
+    gap:6px;
+    font-size:11px;
+    margin:0;
+  }
+  .match-view .match-environment-controls.mobile-open label select{
+    width:100%;
+    min-height:41px;
+    font-size:12px;
+  }
+  .match-view>.world-console{
+    border-radius:13px;
+    border-color:var(--line);
+  }
+  .match-view>.world-console .world-console-summary{padding:11px 12px;min-height:55px}
+  .match-view>.world-console .world-console-summary small{font-size:9px}
+  .match-view>.world-console .world-console-summary strong{font-size:12px}
+  .match-view>.phase-three-stats{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  .match-view>.phase-three-stats .stat-panel{min-height:72px;padding:12px}
+  .match-view>.phase-three-stats .stat-panel strong{font-size:13px}
+  .match-view>.phase-three-stats .stat-panel small{font-size:10px;line-height:1.45}
+}
+@media(max-width:360px){
+  .match-view>.game-shell{height:clamp(410px,73svh,590px);min-height:410px}
+  .match-view>.game-shell .world-broadcast-tag{max-width:37%}
+  .match-view>.game-shell .world-broadcast-tag strong{font-size:9px}
+  .match-view>.game-shell .broadcast-scorebug{min-width:52%;gap:5px}
+  .matchday-mobile-kickoff{width:90%;padding:18px 13px}
+}
+@media(max-height:480px) and (orientation:landscape){
+  .match-view>.game-shell{height:calc(100svh - 65px);min-height:275px}
+  .matchday-mobile-kickoff{
+    bottom:7px;
+    width:min(42%,300px);
+    padding:10px;
+    gap:4px;
+  }
+  .matchday-mobile-kickoff button{min-height:40px}
+  .matchday-mobile-kickoff small{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .matchday-mobile-kickoff *, .match-mobile-settings-toggle{animation:none!important;transition:none!important}
+}
