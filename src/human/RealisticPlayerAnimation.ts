@@ -133,11 +133,12 @@ export function useRealisticPlayerAnimation(options: Options) {
     }
 
     if (updateFace) {
+      const elapsedFaceTime = faceDelta.current
       faceDelta.current = 0
-      blinkTimer.current -= faceDelta.current
+      blinkTimer.current -= elapsedFaceTime
       if (blinkTimer.current <= 0 && blinkPhase.current === 0) blinkPhase.current = 0.001
       if (blinkPhase.current > 0) {
-        blinkPhase.current += faceDelta.current * 13
+        blinkPhase.current += elapsedFaceTime * 13
         const closure = Math.sin(Math.min(Math.PI, blinkPhase.current))
         if (refs.leftLid.current) refs.leftLid.current.scale.y = 0.18 + closure
         if (refs.rightLid.current) refs.rightLid.current.scale.y = 0.18 + closure
