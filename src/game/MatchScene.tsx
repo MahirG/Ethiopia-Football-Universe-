@@ -15,6 +15,7 @@ import { SurfaceEffects } from './SurfaceEffects'
 import type { MatchAction, MatchSceneProps, TeamSide, TimeOfDay } from './types'
 import { useUniversalInput } from '../input/useUniversalInput'
 import { MatchPerformanceProbe } from '../diagnostics/MatchPerformanceProbe'
+import { WebGLContextGuard } from '../runtime/MatchSceneSafety'
 import { createHumanWorld, updateHumanTelemetry, type HumanWorldBundle } from '../human/world'
 import { WorldLayer } from '../world/WorldLayer'
 import { DEFAULT_COMPETITIVE_SETTINGS } from '../phase5/catalog'
@@ -117,9 +118,9 @@ function Runtime({ ballRef, controlledPosition, controlledIndex, scoreGoal, onTe
     const velocityChange = previousCompetitiveVelocity.distanceTo(ballVelocity)
     const closestPlayer = humanWorld.world.players.reduce<(typeof humanWorld.world.players)[number] | null>((best, player) => {
       if (!best) return player
-      return player.position.distanceTo(ballPosition) < best.position.distanceTo(ballPosition) ? player : best
+      return player.position.distanceToSquared(ballPosition) < best.position.distanceToSquared(ballPosition) ? player : best
     }, null)
-    if (closestPlayer && closestPlayer.position.distanceTo(ballPosition) < 1.45 && velocityChange > 0.9 && state.clock.elapsedTime - lastCompetitiveContact.current > 0.16) {
+    if (closestPlayer && closestPlayer.position.distanceToSquared(ballPosition) < 1.45 * 1.45 && velocityChange > 0.9 && state.clock.elapsedTime - lastCompetitiveContact.current > 0.16) {
       const action = (['pass', 'shoot', 'clear', 'tackle', 'intercept', 'goalkeeper-claim'] as const).includes(closestPlayer.action as never)
         ? closestPlayer.action as Phase5BallContact['action']
         : ballVelocity.length() > 13 ? 'shoot' : ballVelocity.length() > 6 ? 'pass' : 'dribble'
@@ -144,9 +145,14 @@ function Runtime({ ballRef, controlledPosition, controlledIndex, scoreGoal, onTe
       outer: for (const player of humanWorld.world.players) {
         for (const opponent of humanWorld.world.players) {
           if (opponent.team === player.team || opponent.id === player.id) continue
-          const distanceBetween = player.position.distanceTo(opponent.position)
-          const relativeSpeed = player.velocity.clone().sub(opponent.velocity).length()
-          if (distanceBetween < 0.62 && relativeSpeed > 5.6) {
+          const separationSquared = player.position.distanceToSquared(opponent.position)
+          if (separationSquared >= 0.62 * 0.62) continue
+          const deltaX = player.velocity.x - opponent.velocity.x
+          const deltaY = player.velocity.y - opponent.velocity.y
+          const deltaZ = player.velocity.z - opponent.velocity.z
+          const relativeSpeedSquared = deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ
+          if (relativeSpeedSquared > 5.6 * 5.6) {
+            const relativeSpeed = Math.sqrt(relativeSpeedSquared)
             const severity = THREE.MathUtils.clamp(relativeSpeed / 10 + (1 - player.physical.balance) * 0.18, 0.35, 1)
             const foul: Phase5FoulContact = {
               team: player.team,
@@ -294,14 +300,15 @@ export function MatchScene(props: MatchSceneProps) {
 
   return <div className="phase5-match-stage human-simulation-stage">
     <CompetitiveOverlay state={competitiveState} />
-    <Canvas className="match-canvas" shadows dpr={preset.dpr} camera={{ position: [0, 26, 38], fov: 45, near: 0.1, far: 280 }} gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: time === 'night' ? 0.86 : 1.04 }}>
+    <Canvas className="match-canvas" shadows={props.quality !== 'performance'} dpr={preset.dpr} camera={{ position: [0, 26, 38], fov: 45, near: 0.1, far: 280 }} gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: time === 'night' ? 0.86 : 1.04 }}>
+      <WebGLContextGuard onLost={props.onRendererContextLost} onRestored={props.onRendererContextRestored} />
       <MatchPerformanceProbe active={Boolean(props.performanceActive)} running={props.running && props.presentationPhase === 'live'} onSnapshot={props.onPerformanceSample} />
       <color attach="background" args={[weatherBackground]} />
       <fog attach="fog" args={[weatherBackground, props.weather === 'fog' ? 18 : props.weather === 'rain' || props.weather === 'storm' ? 42 : 88, props.weather === 'fog' ? 86 : props.weather === 'rain' || props.weather === 'storm' ? 130 : 230]} />
       <Sky distance={230} sunPosition={light.sky} turbidity={props.weather === 'overcast' || props.weather === 'fog' || props.weather === 'dust' ? 18 : 8} rayleigh={props.weather === 'overcast' || props.weather === 'fog' ? 0.6 : 1.4} mieCoefficient={props.weather === 'rain' || props.weather === 'storm' || props.weather === 'fog' ? 0.018 : 0.006} />
       {preset.softShadows && <SoftShadows size={18} samples={14} focus={0.42} />}
       <hemisphereLight args={[light.hemi, '#163222', light.ambient]} />
-      <directionalLight position={light.pos} color={light.sun} intensity={light.power} castShadow shadow-mapSize-width={preset.shadowMapSize} shadow-mapSize-height={preset.shadowMapSize} shadow-camera-left={-66} shadow-camera-right={66} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-far={125} shadow-bias={-0.00016} />
+      <directionalLight position={light.pos} color={light.sun} intensity={light.power} castShadow={props.quality !== 'performance'} shadow-mapSize-width={preset.shadowMapSize} shadow-mapSize-height={preset.shadowMapSize} shadow-camera-left={-66} shadow-camera-right={66} shadow-camera-top={48} shadow-camera-bottom={-48} shadow-camera-far={125} shadow-bias={-0.00016} />
       <Suspense fallback={null}>
         <Physics gravity={[0, -9.81, 0]} paused={!props.running} timeStep={1 / 60} interpolate>
           <Pitch weather={props.weather} quality={props.quality} eventPulse={props.replayToken} world={props.world} />

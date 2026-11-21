@@ -1,0 +1,47 @@
+/* EFU mid-match recovery. Non-destructive controls remain usable if WebGL fails. */
+.match-renderer-fallback {
+  display:grid;
+  place-content:center;
+  gap:10px;
+  min-height:280px;
+  padding:clamp(20px,5vw,44px);
+  background:radial-gradient(circle at 50% 10%,#193e2d,#06130e 75%);
+  color:#f8e9c4;
+  text-align:center;
+  border:1px solid rgba(244,203,118,.36);
+  border-radius:14px;
+}
+.match-renderer-fallback strong { font-size:clamp(18px,3vw,26px) }
+.match-renderer-fallback p { margin:0 auto;max-width:54ch;font-size:13px;line-height:1.6;color:#d4decf }
+.match-recovery-panel {
+  position:absolute;
+  z-index:50;
+  inset:auto max(10px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+  margin-inline:auto;
+  max-width:460px;
+  padding:clamp(13px,3vw,22px);
+  border:1px solid rgba(245,207,122,.83);
+  border-radius:16px;
+  background:linear-gradient(135deg,rgba(18,47,31,.98),rgba(5,19,12,.98));
+  box-shadow:0 13px 40px #0009;
+  color:#fff4d9;
+  display:grid;
+  gap:10px;
+  pointer-events:auto;
+}
+.match-recovery-panel strong { font-size:clamp(15px,3vw,20px) }
+.match-recovery-panel p { margin:0;font-size:12px;line-height:1.55;color:#d9dfd3 }
+.match-recovery-panel button {
+  min-height:44px;
+  padding:10px 18px;
+  color:#0b2518;
+  background:linear-gradient(135deg,#f5d68d,#dfb65f);
+  border:1px solid #fff2bc;
+  border-radius:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+.match-recovery-panel button:focus-visible { outline:3px solid white;outline-offset:3px }
+@media (max-height:450px) and (orientation:landscape) {
+  .match-recovery-panel { max-width:560px;max-height:85%;overflow:auto; }
+}

@@ -29,11 +29,14 @@ import { AudioDebugOverlay } from '../audio/AudioDebugOverlay'
 import { AudioSettingsPanel } from '../audio/AudioSettingsPanel'
 import { useGlobalAudio } from '../audio/AudioProvider'
 import { useFootballAudio } from '../audio/useFootballAudio'
+import type { AudioEventContext, FootballAudioEvent } from '../audio/types'
 import { UniversalControlsOverlay } from '../input/UniversalControlsOverlay'
 import { ControlSettingsPanel } from '../input/ControlSettingsPanel'
 import { MatchDeviceLab } from '../diagnostics/MatchDeviceLab'
+import { MatchSceneErrorBoundary } from '../runtime/MatchSceneSafety'
+import { recordClientFailure } from '../runtime/kickoffSafety'
 import type { FrameHealthSnapshot } from '../diagnostics/frameHealth'
-import { getActiveInputDevice, subscribeFootballAction, subscribeInputDevice } from '../input/bus'
+import { getActiveInputDevice, releaseAllVirtualInput, subscribeFootballAction, subscribeInputDevice } from '../input/bus'
 import type { InputDeviceKind } from '../input/types'
 import type {
   Difficulty,
@@ -140,6 +143,8 @@ export function MatchView() {
   const [showAudioSettings, setShowAudioSettings] = useState(false)
   const [showControlSettings, setShowControlSettings] = useState(false)
   const [showDeviceLab, setShowDeviceLab] = useState(false)
+  const [rendererIssue, setRendererIssue] = useState<string | null>(null)
+  const [webglLost, setWebglLost] = useState(false)
   const [capturingHealth, setCapturingHealth] = useState(false)
   const [healthSnapshot, setHealthSnapshot] = useState<FrameHealthSnapshot | null>(null)
   const handleHealthSnapshot = useCallback((snapshot: FrameHealthSnapshot) => setHealthSnapshot(snapshot), [])
@@ -157,17 +162,47 @@ export function MatchView() {
   const [telemetry, setTelemetry] = useState<MatchTelemetry>(INITIAL_TELEMETRY)
   const [humanTelemetry, setHumanTelemetry] = useState<HumanTelemetry>(INITIAL_HUMAN_TELEMETRY)
   const [message, setMessage] = useState('Ready for broadcast')
+  const handleRendererFailure = useCallback((error: Error | string) => {
+    // Keep the score and match clock in React state; only the WebGL scene is reset.
+    recordClientFailure('match-renderer', error)
+    releaseAllVirtualInput()
+    setRunning(false)
+    setCapturingHealth(false)
+    // Do not reconfigure the renderer while its WebGL context is lost.
+    // Graphics quality is reduced only after the user requests a safe restart.
+    setRendererIssue(error instanceof Error ? 'A rendering error interrupted play.' : 'The 3D graphics context was interrupted.')
+    setMessage('Graphics interrupted · match paused')
+  }, [])
+  const handleWebglLoss = useCallback(() => {
+    setWebglLost(true)
+    handleRendererFailure('WebGL context lost')
+  }, [handleRendererFailure])
+  const handleWebglRestoration = useCallback(() => {
+    setWebglLost(false)
+  }, [])
+  const restartRenderer = useCallback(() => {
+    releaseAllVirtualInput()
+    setRunning(false)
+    setQuality('performance')
+    setWebglLost(false)
+    setRendererIssue(null)
+    setSceneKey((value) => value + 1)
+    setMessage('Graphics restarted in Performance mode · resume when ready')
+  }, [setQuality])
   const [records, setRecords] = useLocalStorage<MatchRecord[]>('efu-match-history', [])
   const home = useMemo(() => premierClubs.find((item) => item.id === homeId) ?? premierClubs[0], [homeId])
   const away = useMemo(() => premierClubs.find((item) => item.id === awayId) ?? premierClubs[1], [awayId])
   const matchProgress = Math.min(1, score.time / 90)
+  // Keep the on-screen match clock at its normal cadence while rebuilding the
+  // costly stadium/world simulation at five-minute display intervals.
+  const worldMinute = Math.min(90, Math.floor(score.time / 5) * 5)
   const patchWorldSelection = useCallback((patch: Partial<WorldSelection>) => setWorldSelection((current) => ({ ...current, ...patch })), [setWorldSelection])
   const world = useMemo(() => createMatchWorld({
     selection: worldSelection,
     weather,
     weatherIntensity,
     timeOfDay,
-    matchMinute: score.time,
+    matchMinute: worldMinute,
     scoreHome: score.home,
     scoreAway: score.away,
     presentationPhase,
@@ -183,7 +218,7 @@ export function MatchView() {
     slides: humanTelemetry.footSlipEvents,
     eventPulse: replayToken > 0 ? 1 : 0,
     lastEvent: message,
-  }), [humanTelemetry.footSlipEvents, message, presentationPhase, quality, replayToken, score.away, score.home, score.time, timeOfDay, weather, weatherIntensity, worldSelection])
+  }), [humanTelemetry.footSlipEvents, message, presentationPhase, quality, replayToken, score.away, score.home, worldMinute, timeOfDay, weather, weatherIntensity, worldSelection])
   const { settings: audioSettings, patch: patchAudioSettings, reset: resetAudioSettings } = useGlobalAudio()
   const audio = useFootballAudio(audioSettings, {
     homeId: home.id,
@@ -193,6 +228,15 @@ export function MatchView() {
     stadiumName: world.venue.name,
     competition: world.competition.name,
   })
+  const emitMatchAudio = useCallback((event: FootballAudioEvent, payload: Omit<AudioEventContext, 'event'> = {}) => {
+    try {
+      audio.emit(event, payload)
+    } catch (error) {
+      // A disabled/suspended Android audio context must never abort the 3D frame.
+      recordClientFailure('match-audio', error)
+    }
+  }, [audio])
+
   const commentaryCaption = audio.caption
   const commentarySupported = audio.speechSupported
 
@@ -263,10 +307,10 @@ export function MatchView() {
   const handleGoal = useCallback((team: TeamSide) => {
     setScore((current) => ({ ...current, [team]: current[team] + 1 }))
     setCelebrationTeam(team)
-    audio.emit('goal-scored', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, importance: 0.72, tension: 0.9 })
+    emitMatchAudio('goal-scored', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, importance: 0.72, tension: 0.9 })
     audio.setCrowd({ intensity: 1, tension: 0.82, momentum: team === 'home' ? 1 : -1, attackThreat: 0.3 })
     beginReplay(`${team === 'home' ? home.shortName : away.shortName} goal · cinematic replay`)
-  }, [audio, away.shortName, beginReplay, home.shortName, score.away, score.home, score.time])
+  }, [audio, emitMatchAudio, away.shortName, beginReplay, home.shortName, score.away, score.home, score.time])
 
   const handleAction = useCallback((action: MatchAction, team: TeamSide) => {
     setActions((current) => {
@@ -284,10 +328,10 @@ export function MatchView() {
         ? { ...current, homeShots: current.homeShots + 1 }
         : { ...current, awayShots: current.awayShots + 1 }
     })
-    if (action === 'pass') audio.emit('pass-completed', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.48 })
-    else if (action === 'save') audio.emit('save-made', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.8 })
-    else audio.emit('shot-taken', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.88, speed: telemetry.ballSpeed })
-  }, [audio, score.away, score.home, score.time, telemetry.ballSpeed])
+    if (action === 'pass') emitMatchAudio('pass-completed', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.48 })
+    else if (action === 'save') emitMatchAudio('save-made', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.8 })
+    else emitMatchAudio('shot-taken', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.88, speed: telemetry.ballSpeed })
+  }, [emitMatchAudio, score.away, score.home, score.time, telemetry.ballSpeed])
 
   const startOpeningSequence = useCallback(async () => {
     await audio.ensureStarted()
@@ -321,7 +365,7 @@ export function MatchView() {
   }, [audio, clearPhaseTimers, score.away, score.home, world.attendance.capacityRatio, world.competition.prestige, world.crowd.tension, world.venue.name, worldSelection.importance])
 
   const toggleMatch = useCallback(async () => {
-    if (replayActive || completedRef.current) return
+    if (replayActive || completedRef.current || rendererIssue) return
     if (running) {
       setRunning(false)
       setMessage('Match paused')
@@ -344,7 +388,7 @@ export function MatchView() {
         console.error('[match-resume-audio] Non-fatal audio failure', error)
       }
     }, 0)
-  }, [audio, presentationPhase, replayActive, running, score.away, score.home, score.time, startOpeningSequence])
+  }, [audio, presentationPhase, rendererIssue, replayActive, running, score.away, score.home, score.time, startOpeningSequence])
 
   useEffect(() => () => {
     if (replayTimerRef.current !== null) window.clearTimeout(replayTimerRef.current)
@@ -360,9 +404,16 @@ export function MatchView() {
 
   useEffect(() => {
     if (!running) return
+    // The match simulation remains at 60 Hz; React's large 3D/scoreboard tree
+    // does not need a full update ten times a second on constrained Android GPUs.
+    let lastTick = performance.now()
     const interval = window.setInterval(() => {
-      setScore((current) => ({ ...current, time: Math.min(90, current.time + MATCH_MINUTES_PER_SECOND / 10) }))
-    }, 100)
+      const now = performance.now()
+      const elapsedSeconds = Math.min(0.5, Math.max(0, (now - lastTick) / 1000))
+      lastTick = now
+      if (elapsedSeconds === 0) return
+      setScore((current) => ({ ...current, time: Math.min(90, current.time + MATCH_MINUTES_PER_SECOND * elapsedSeconds) }))
+    }, 250)
     return () => window.clearInterval(interval)
   }, [running])
 
@@ -432,8 +483,8 @@ export function MatchView() {
 
   const handleSceneEvent = useCallback((eventMessage: string) => {
     setMessage(eventMessage)
-    if (eventMessage.toLowerCase().includes('restart')) audio.emit('ball-kicked', { scoreHome: score.home, scoreAway: score.away, matchMinute: score.time, force: 0.45 })
-  }, [audio, score.away, score.home, score.time])
+    if (eventMessage.toLowerCase().includes('restart')) emitMatchAudio('ball-kicked', { scoreHome: score.home, scoreAway: score.away, matchMinute: score.time, force: 0.45 })
+  }, [emitMatchAudio, score.away, score.home, score.time])
 
 
   const enterFullscreen = () => {
@@ -498,6 +549,7 @@ export function MatchView() {
         )}
         {audioSettings.visualIndicators && audio.profile?.lastEvents[0] && <div className="sound-indicator">◉ {audio.profile.lastEvents[0]}</div>}
 
+        <MatchSceneErrorBoundary key={sceneKey} onFailure={handleRendererFailure}>
         <MatchScene
           key={sceneKey}
           running={running}
@@ -527,10 +579,20 @@ export function MatchView() {
           onAction={handleAction}
           performanceActive={capturingHealth}
           onPerformanceSample={handleHealthSnapshot}
+          onRendererContextLost={handleWebglLoss}
+          onRendererContextRestored={handleWebglRestoration}
           onTelemetry={setTelemetry}
           onHumanTelemetry={setHumanTelemetry}
-          onAudioEvent={(event, context) => audio.emit(event, { ...context, scoreHome: score.home, scoreAway: score.away, matchMinute: score.time })}
+          onAudioEvent={(event, context) => emitMatchAudio(event, { ...context, scoreHome: score.home, scoreAway: score.away, matchMinute: score.time })}
         />
+        </MatchSceneErrorBoundary>
+        {rendererIssue && (
+          <section className="match-recovery-panel" role="alert">
+            <strong>{webglLost ? 'Graphics connection lost' : 'Match paused for safety'}</strong>
+            <p>{rendererIssue} Your score and match time are preserved, but player positions will restart. Please retry in Performance mode.</p>
+            <button type="button" onClick={restartRenderer}>Restart 3D graphics</button>
+          </section>
+        )}
 
         {(presentationPhase === 'intro' || presentationPhase === 'halftime' || presentationPhase === 'fulltime') && (
           <div className={`cinematic-package package-${presentationPhase}`}>
@@ -591,7 +653,7 @@ export function MatchView() {
 
       <section className="match-toolbar panel match-toolbar-3d phase-three-toolbar phase-four-toolbar">
         <div className="match-primary-actions">
-          <button className="primary-button" onClick={() => void toggleMatch()} disabled={replayActive || presentationPhase === 'intro' || presentationPhase === 'halftime' || presentationPhase === 'fulltime'}>
+          <button className="primary-button" onClick={() => void toggleMatch()} disabled={Boolean(rendererIssue) || replayActive || presentationPhase === 'intro' || presentationPhase === 'halftime' || presentationPhase === 'fulltime'}>
             {running ? <CirclePause size={18} /> : <CirclePlay size={18} />}
             {running ? 'Pause' : score.time > 0 ? 'Resume' : 'Start broadcast'}
           </button>

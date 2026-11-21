@@ -49,6 +49,8 @@ export interface MatchSceneProps {
   onTelemetry: (telemetry: MatchTelemetry) => void
   performanceActive?: boolean
   onPerformanceSample?: (sample: FrameHealthSnapshot) => void
+  onRendererContextLost?: () => void
+  onRendererContextRestored?: () => void
   onHumanTelemetry: (telemetry: import('../human/types').HumanTelemetry) => void
   onCompetitiveState?: (state: import('../phase5/types').CompetitiveMatchState) => void
   onCompetitiveEvent?: (event: import('../phase5/types').CompetitiveEvent) => void

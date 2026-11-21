@@ -7,7 +7,7 @@ const GRAPHICS_QUALITY_KEY = 'efu-graphics-quality'
 const CAMERA_SHAKE_KEY = 'efu-camera-shake'
 const CRASH_DIAGNOSTIC_KEY = 'efu-last-client-crash'
 
-function recordClientFailure(source: string, reason: unknown) {
+export function recordClientFailure(source: string, reason: unknown) {
   try {
     const message = reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason)
     window.localStorage.setItem(CRASH_DIAGNOSTIC_KEY, JSON.stringify({

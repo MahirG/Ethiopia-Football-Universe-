@@ -70,43 +70,67 @@ function Architecture({ world }: { world: MatchWorldState }) {
 
 const PITCH_SAFE_LENGTH = HALF_LENGTH * 2 + 8
 
+/**
+ * Avoid recreating and uploading a 1024x512 stadium-screen texture on every
+ * match-clock UI update. On a mobile GPU those uploads compete with 22 players.
+ * The on-screen HTML scoreboard remains the accurate live clock.
+ */
 function useScoreTexture(world: MatchWorldState, homeName: string, awayName: string) {
+  const resolution = world.quality === 'performance' ? 0.5 : 1
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas')
-    canvas.width = 1024
-    canvas.height = 512
+    canvas.width = 1024 * resolution
+    canvas.height = 512 * resolution
     const value = new THREE.CanvasTexture(canvas)
     value.colorSpace = THREE.SRGBColorSpace
+    value.generateMipmaps = false
+    value.minFilter = THREE.LinearFilter
     return value
-  }, [])
+  }, [resolution])
+
+  const competitionPrimary = world.competition.colors[0]
+  const competitionSecondary = world.competition.colors[1]
+  const competitionAccent = world.competition.colors[2]
+  const competitionName = world.competition.shortName
+  const venueName = world.venue.name
+  const attendees = world.attendance.total
+  const scoreHome = world.scoreHome
+  const scoreAway = world.scoreAway
+  const scoreMinute = Math.min(90, Math.floor(world.matchMinute / 5) * 5)
+  const ceremonyStage = world.ceremony.active ? world.ceremony.stage.toUpperCase() : world.phase.replace('-', ' ').toUpperCase()
+
   useEffect(() => {
     const canvas = texture.image as HTMLCanvasElement
     const context = canvas.getContext('2d')
     if (!context) return
-    context.fillStyle = world.competition.colors[0]
-    context.fillRect(0, 0, canvas.width, canvas.height)
-    const gradient = context.createLinearGradient(0, 0, canvas.width, 0)
-    gradient.addColorStop(0, world.competition.colors[0])
+    context.setTransform(resolution, 0, 0, resolution, 0, 0)
+    context.clearRect(0, 0, 1024, 512)
+    context.fillStyle = competitionPrimary
+    context.fillRect(0, 0, 1024, 512)
+    const gradient = context.createLinearGradient(0, 0, 1024, 0)
+    gradient.addColorStop(0, competitionPrimary)
     gradient.addColorStop(0.5, '#07100d')
-    gradient.addColorStop(1, world.competition.colors[1])
+    gradient.addColorStop(1, competitionSecondary)
     context.fillStyle = gradient
-    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.fillRect(0, 0, 1024, 512)
     context.fillStyle = '#f7f4e8'
     context.textAlign = 'center'
     context.font = '700 34px Arial'
-    context.fillText(world.competition.shortName, 512, 62)
+    context.fillText(competitionName, 512, 62)
     context.font = '900 64px Arial'
-    context.fillText(`${homeName}  ${world.scoreHome} — ${world.scoreAway}  ${awayName}`, 512, 178)
+    context.fillText(`${homeName}  ${scoreHome} — ${scoreAway}  ${awayName}`, 512, 178)
     context.font = '700 42px Arial'
-    context.fillText(`${String(Math.floor(world.matchMinute)).padStart(2, '0')}:00`, 512, 250)
+    context.fillText(`${String(scoreMinute).padStart(2, '0')}:00`, 512, 250)
     context.font = '600 27px Arial'
-    context.fillText(world.ceremony.active ? world.ceremony.stage.toUpperCase() : world.phase.replace('-', ' ').toUpperCase(), 512, 318)
+    context.fillText(ceremonyStage, 512, 318)
     context.font = '500 22px Arial'
-    context.fillText(`${world.venue.name} · ${world.attendance.total.toLocaleString()} spectators`, 512, 384)
-    context.fillStyle = world.competition.colors[2]
+    context.fillText(`${venueName} · ${attendees.toLocaleString()} spectators`, 512, 384)
+    context.fillStyle = competitionAccent
     context.fillRect(120, 430, 784, 10)
     texture.needsUpdate = true
-  }, [awayName, homeName, texture, world])
+  }, [awayName, homeName, resolution, texture, competitionPrimary, competitionSecondary,
+    competitionAccent, competitionName, venueName, attendees, scoreHome, scoreAway,
+    scoreMinute, ceremonyStage])
   useEffect(() => () => texture.dispose(), [texture])
   return texture
 }
