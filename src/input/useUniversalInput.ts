@@ -106,6 +106,9 @@ export function useUniversalInput() {
       keyboardHeld.current.clear()
       mouseHeld.current.clear()
       gamepadPrevious.current.clear()
+      state.current.activeDevice = 'unknown'
+      state.current.connectedGamepad = null
+      markActiveInputDevice('unknown')
       releaseAllVirtualInput()
     }
     const onTouch = () => markActiveInputDevice('touch')
@@ -113,6 +116,8 @@ export function useUniversalInput() {
     const onGamepadDisconnect = () => {
       gamepadPrevious.current.forEach((action) => transientReleased.current.add(action))
       gamepadPrevious.current.clear()
+      state.current.activeDevice = 'unknown'
+      state.current.connectedGamepad = null
       markActiveInputDevice('unknown')
     }
     const onVisibility = () => {
