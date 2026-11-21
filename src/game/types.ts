@@ -1,3 +1,5 @@
+import type { FrameHealthSnapshot } from '../diagnostics/frameHealth'
+
 export type Weather = 'clear' | 'overcast' | 'rain' | 'wind' | 'storm' | 'fog' | 'snow' | 'heat' | 'dust'
 export type TimeOfDay = 'dynamic' | 'dawn' | 'morning' | 'midday' | 'afternoon' | 'golden' | 'sunset' | 'evening' | 'night' | 'late-night'
 export type LiveCameraMode = 'broadcast' | 'auto' | 'follow' | 'ball' | 'free'
@@ -45,6 +47,8 @@ export interface MatchSceneProps {
   onEvent: (message: string) => void
   onAction: (action: MatchAction, team: TeamSide) => void
   onTelemetry: (telemetry: MatchTelemetry) => void
+  performanceActive?: boolean
+  onPerformanceSample?: (sample: FrameHealthSnapshot) => void
   onHumanTelemetry: (telemetry: import('../human/types').HumanTelemetry) => void
   onCompetitiveState?: (state: import('../phase5/types').CompetitiveMatchState) => void
   onCompetitiveEvent?: (event: import('../phase5/types').CompetitiveEvent) => void

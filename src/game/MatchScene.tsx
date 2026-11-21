@@ -14,6 +14,7 @@ import { Stadium } from './Stadium'
 import { SurfaceEffects } from './SurfaceEffects'
 import type { MatchAction, MatchSceneProps, TeamSide, TimeOfDay } from './types'
 import { useUniversalInput } from '../input/useUniversalInput'
+import { MatchPerformanceProbe } from '../diagnostics/MatchPerformanceProbe'
 import { createHumanWorld, updateHumanTelemetry, type HumanWorldBundle } from '../human/world'
 import { WorldLayer } from '../world/WorldLayer'
 import { DEFAULT_COMPETITIVE_SETTINGS } from '../phase5/catalog'
@@ -294,6 +295,7 @@ export function MatchScene(props: MatchSceneProps) {
   return <div className="phase5-match-stage human-simulation-stage">
     <CompetitiveOverlay state={competitiveState} />
     <Canvas className="match-canvas" shadows dpr={preset.dpr} camera={{ position: [0, 26, 38], fov: 45, near: 0.1, far: 280 }} gl={{ antialias: preset.antialias, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: time === 'night' ? 0.86 : 1.04 }}>
+      <MatchPerformanceProbe active={Boolean(props.performanceActive)} running={props.running && props.presentationPhase === 'live'} onSnapshot={props.onPerformanceSample} />
       <color attach="background" args={[weatherBackground]} />
       <fog attach="fog" args={[weatherBackground, props.weather === 'fog' ? 18 : props.weather === 'rain' || props.weather === 'storm' ? 42 : 88, props.weather === 'fog' ? 86 : props.weather === 'rain' || props.weather === 'storm' ? 130 : 230]} />
       <Sky distance={230} sunPosition={light.sky} turbidity={props.weather === 'overcast' || props.weather === 'fog' || props.weather === 'dust' ? 18 : 8} rayleigh={props.weather === 'overcast' || props.weather === 'fog' ? 0.6 : 1.4} mieCoefficient={props.weather === 'rain' || props.weather === 'storm' || props.weather === 'fog' ? 0.018 : 0.006} />

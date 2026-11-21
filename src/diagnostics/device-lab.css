@@ -1,0 +1,33 @@
+/* EFU Device Lab — diagnostics only; never overlays live football controls */
+.device-lab {
+  padding:clamp(15px,2.4vw,25px);
+  border:1px solid rgba(229,190,105,.34);
+  border-radius:18px;
+  background:linear-gradient(145deg,rgba(19,52,35,.96),rgba(7,25,16,.96));
+  color:#f4efe0;
+  box-shadow:0 12px 38px rgba(0,0,0,.17);
+}
+.device-lab-head{display:flex;justify-content:space-between;align-items:start;gap:12px}
+.device-lab-head small{color:#efc56b;font-weight:800;font-size:10px;letter-spacing:.14em}
+.device-lab-head h2{font-size:clamp(18px,2.6vw,25px);margin:6px 0;display:flex;align-items:center;gap:8px}
+.device-lab-head h2 svg{color:#edc46d}
+.device-lab-head p,.device-lab-hint{font-size:12px;line-height:1.55;color:#bdcbbd;max-width:70ch}
+.device-lab-close{height:38px;width:38px;flex-shrink:0;display:grid;place-items:center;background:#21402e;color:#f5e7c4;border:1px solid #d7b36e66;border-radius:11px}
+.device-lab-toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:17px 0}
+.device-lab-toolbar button{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.device-lab-chip{display:inline-flex;gap:6px;align-items:center;font-size:11px;border:1px solid #ebc7754a;border-radius:18px;color:#e9d5a6;padding:7px 11px}
+.device-lab-capturing{font-size:11px;font-weight:750;color:#86d8a8}
+.device-lab-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
+.device-lab-grid>div{background:rgba(241,206,126,.065);border:1px solid #eccb8352;padding:12px;border-radius:12px;display:grid;gap:6px}
+.device-lab-grid span{font-size:11px;color:#becabc;line-height:1.35}
+.device-lab-grid strong{font-size:clamp(17px,2.5vw,25px);letter-spacing:-.035em;color:#f2d582;font-variant-numeric:tabular-nums}
+.device-lab-checks{border-top:1px solid #e9c8773d;margin-top:16px;padding-top:15px}
+.device-lab-checks h3{font-size:14px;display:flex;align-items:center;gap:7px}
+.device-lab-checks h3 svg{color:#efce85}
+.device-lab-checks label{display:flex;align-items:start;gap:9px;font-size:12px;color:#f0eee4;line-height:1.5;padding:9px 0;cursor:pointer}
+.device-lab-checks input{margin-top:2px;width:18px;height:18px;accent-color:#e6bc65;flex-shrink:0}
+.device-lab-checks p{font-size:11px;color:#a6b8a8;margin-top:10px}
+.device-lab :is(button,input):focus-visible{outline:3px solid #ffe3a3;outline-offset:3px}
+@media(max-width:680px){.device-lab-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.device-lab-toolbar{gap:7px}.device-lab-toolbar button{font-size:11px}}
+@media(max-width:360px){.device-lab-grid{grid-template-columns:1fr 1fr}.device-lab-grid>div{padding:10px}.device-lab-grid strong{font-size:17px}}
+@media(prefers-reduced-motion:reduce){.device-lab *{transition:none!important;animation:none!important}}

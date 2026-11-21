@@ -125,6 +125,8 @@ export function consumeVirtualInput(): VirtualInputSnapshot {
 }
 
 export function releaseAllVirtualInput() {
+  // A pending press must never fire after a visibility/blur interruption.
+  virtualInput.pressed.clear()
   virtualInput.held.forEach((action) => virtualInput.released.add(action))
   virtualInput.held.clear()
   virtualInput.move = { x: 0, z: 0, magnitude: 0 }
