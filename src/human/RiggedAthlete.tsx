@@ -37,18 +37,19 @@ export function RiggedAthlete({
   // scene. Cancel a pending disposal if the exact rig is attached again.
   const cleanupQueue = useRef(new Map<typeof rig, { cancelled: boolean }>())
   useEffect(() => {
-    const pending = cleanupQueue.current.get(rig)
+    const queue = cleanupQueue.current
+    const pending = queue.get(rig)
     if (pending) {
       pending.cancelled = true
-      cleanupQueue.current.delete(rig)
+      queue.delete(rig)
     }
     return () => {
       const disposal = { cancelled: false }
-      cleanupQueue.current.set(rig, disposal)
+      queue.set(rig, disposal)
       queueMicrotask(() => {
         if (disposal.cancelled) return
         rig.dispose()
-        cleanupQueue.current.delete(rig)
+        queue.delete(rig)
       })
     }
   }, [rig])
