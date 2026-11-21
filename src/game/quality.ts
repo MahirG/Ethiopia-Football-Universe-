@@ -14,12 +14,12 @@ export interface QualityPreset {
 
 export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
   performance: {
-    dpr: [0.75, 1.1],
+    dpr: [0.65, 1],
     grassBlades: 0,
-    crowdPerLongStand: 260,
-    crowdPerShortStand: 150,
+    crowdPerLongStand: 170,
+    crowdPerShortStand: 95,
     shadowMapSize: 1024,
-    rainDrops: 650,
+    rainDrops: 420,
     surfaceMarks: 18,
     antialias: false,
     softShadows: false,
