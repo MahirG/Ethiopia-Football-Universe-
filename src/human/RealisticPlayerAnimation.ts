@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useRef, type MutableRefObject, type RefObject } from 'react'
 import * as THREE from 'three'
 import { footPlantOffset } from './biomechanics'
+import { ATHLETE_LOD_BUDGETS, selectAthleteLod, type AthleteLod } from './realismLOD'
 import type { PlayerProfile, PlayerRuntimeState, VisualMotionState } from './types'
 import type { PresentationPhase, QualityLevel, TeamSide } from '../game/types'
 
@@ -9,6 +10,11 @@ export interface PlayerAnimationRefs {
   root: RefObject<THREE.Group | null>
   highLod: RefObject<THREE.Group | null>
   lowLod: RefObject<THREE.Group | null>
+  fieldLod: RefObject<THREE.Group | null>
+  fieldLeftArm: RefObject<THREE.Group | null>
+  fieldRightArm: RefObject<THREE.Group | null>
+  fieldLeftLeg: RefObject<THREE.Group | null>
+  fieldRightLeg: RefObject<THREE.Group | null>
   torso: RefObject<THREE.Group | null>
   pelvis: RefObject<THREE.Group | null>
   head: RefObject<THREE.Group | null>
@@ -58,6 +64,7 @@ export function useRealisticPlayerAnimation(options: Options) {
   const lastScan = useRef(0)
   const scanTarget = useRef(new THREE.Vector3())
   const worldPosition = useRef(new THREE.Vector3())
+  const previousLod = useRef<AthleteLod>('distance')
 
   useFrame((state, delta) => {
     const root = refs.root.current
@@ -90,11 +97,18 @@ export function useRealisticPlayerAnimation(options: Options) {
     const armSwing = Math.min(0.9, speed * 0.09) * profile.movement.armSwing
     if (refs.leftArm.current) refs.leftArm.current.rotation.x = -Math.sin(visual.gaitPhase) * armSwing - visual.goalkeeperDive
     if (refs.rightArm.current) refs.rightArm.current.rotation.x = Math.sin(visual.gaitPhase) * armSwing - visual.goalkeeperDive
+    // Low-poly field athletes keep meaningful limb motion without face / hair draw calls.
+    if (refs.fieldLeftLeg.current) refs.fieldLeftLeg.current.rotation.x = leftSwing * 0.78 + (profile.preferredFoot === 'left' ? visual.kick * 0.95 : 0)
+    if (refs.fieldRightLeg.current) refs.fieldRightLeg.current.rotation.x = rightSwing * 0.78 + (profile.preferredFoot === 'right' ? visual.kick * 0.95 : 0)
+    if (refs.fieldLeftArm.current) refs.fieldLeftArm.current.rotation.x = -Math.sin(visual.gaitPhase) * armSwing - visual.goalkeeperDive
+    if (refs.fieldRightArm.current) refs.fieldRightArm.current.rotation.x = Math.sin(visual.gaitPhase) * armSwing - visual.goalkeeperDive
     if (refs.leftForearm.current) refs.leftForearm.current.rotation.x = 0.16 + Math.max(0, Math.sin(visual.gaitPhase)) * 0.34
     if (refs.rightForearm.current) refs.rightForearm.current.rotation.x = 0.16 + Math.max(0, -Math.sin(visual.gaitPhase)) * 0.34
     if (celebrationTeam === runtime.team && presentationPhase !== 'idle') {
       if (refs.leftArm.current) refs.leftArm.current.rotation.x = -2.3
       if (refs.rightArm.current) refs.rightArm.current.rotation.x = profile.movement.celebrationStyle === 3 ? -0.6 : -2.3
+      if (refs.fieldLeftArm.current) refs.fieldLeftArm.current.rotation.x = -2.3
+      if (refs.fieldRightArm.current) refs.fieldRightArm.current.rotation.x = -2.3
     }
 
     blinkTimer.current -= delta
@@ -136,16 +150,20 @@ export function useRealisticPlayerAnimation(options: Options) {
 
     root.getWorldPosition(worldPosition.current)
     const distance = camera.position.distanceTo(worldPosition.current)
-    const highDetail = controlled || distance < (quality === 'ultra' ? 62 : quality === 'balanced' ? 36 : 17)
-    if (refs.highLod.current) refs.highLod.current.visible = highDetail
-    if (refs.lowLod.current) refs.lowLod.current.visible = !highDetail
-    const closeDetail = highDetail && distance < (quality === 'ultra' ? 28 : 17)
+    const lod = selectAthleteLod(distance, quality, controlled, previousLod.current)
+    previousLod.current = lod
+    if (refs.highLod.current) refs.highLod.current.visible = lod === 'hero'
+    if (refs.fieldLod.current) refs.fieldLod.current.visible = lod === 'field'
+    if (refs.lowLod.current) refs.lowLod.current.visible = lod === 'distance'
+
+    const budget = ATHLETE_LOD_BUDGETS[quality]
+    const closeDetail = lod === 'hero' && distance < budget.faceDistance
     if (refs.faceDetail.current) refs.faceDetail.current.visible = closeDetail
-    if (refs.hairDetail.current) refs.hairDetail.current.visible = highDetail && distance < 40
+    if (refs.hairDetail.current) refs.hairDetail.current.visible = lod === 'hero' && distance < budget.faceDistance * 1.5
     if (refs.leftHandDetail.current) refs.leftHandDetail.current.visible = closeDetail
     if (refs.rightHandDetail.current) refs.rightHandDetail.current.visible = closeDetail
-    if (refs.leftBootDetail.current) refs.leftBootDetail.current.visible = highDetail
-    if (refs.rightBootDetail.current) refs.rightBootDetail.current.visible = highDetail
+    if (refs.leftBootDetail.current) refs.leftBootDetail.current.visible = lod === 'hero'
+    if (refs.rightBootDetail.current) refs.rightBootDetail.current.visible = lod === 'hero'
 
     visual.kick = THREE.MathUtils.damp(visual.kick, 0, 8, delta)
     visual.tackle = THREE.MathUtils.damp(visual.tackle, 0, 7, delta)
