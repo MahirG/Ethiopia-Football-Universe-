@@ -24,7 +24,7 @@ const scene = read('src/game/MatchScene.tsx')
 const stadium = read('src/world/WorldLayer.tsx')
 const boundary = read('src/runtime/MatchSceneSafety.tsx')
 const safety = read('src/runtime/kickoffSafety.ts')
-const css = read('src/runtime/match-crash.css')
+const css = read('src/runtime/match-recovery.css')
 
 for (const fragment of [
   "Math.floor(score.time / 5) * 5",
