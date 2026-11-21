@@ -80,6 +80,14 @@ export function createRiggedAthlete(
   const rightShin = bone('shinR', rightThigh, 0, -body.upperLegLength, 0)
   bone('footR', rightShin, 0, -body.lowerLegLength, 0)
 
+  // Geometry vertices are authored in neutral bind-pose coordinates. Skeleton
+  // inverse matrices therefore cancel exactly at rest, then deform correctly.
+  hips.updateMatrixWorld(true)
+  const bindPositions = new Map<AthleteBoneName, THREE.Vector3>()
+  for (const name of Object.keys(bones) as AthleteBoneName[]) {
+    bindPositions.set(name, bones[name].getWorldPosition(new THREE.Vector3()))
+  }
+
   const byMaterial = new Map<number, Segment[]>()
   function ellipsoid(material: number, part: AthleteBoneName, center: Segment['center'], radii: Segment['radii'], segments = detail) {
     const previous = byMaterial.get(material) ?? []
@@ -161,7 +169,12 @@ export function createRiggedAthlete(
         : new THREE.SphereGeometry(1, segment.segments ?? detail, Math.max(6, Math.floor((segment.segments ?? detail) * 0.77)))
       if (segment.kind === 'back-number') piece.rotateY(Math.PI)
       if (!segment.kind || segment.kind === 'sphere') piece.scale(...segment.radii)
-      piece.translate(...segment.center)
+      const joint = bindPositions.get(segment.bone)!
+      piece.translate(
+        segment.center[0] + joint.x,
+        segment.center[1] + joint.y,
+        segment.center[2] + joint.z,
+      )
       const p = piece.getAttribute('position')
       const n = piece.getAttribute('normal')
       const uv = piece.getAttribute('uv')
