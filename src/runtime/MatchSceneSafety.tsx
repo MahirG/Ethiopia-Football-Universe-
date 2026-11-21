@@ -4,7 +4,6 @@ import { useThree } from '@react-three/fiber'
 interface SceneBoundaryProps {
   children: ReactNode
   onFailure: (error: Error) => void
-  onRetry: () => void
 }
 
 interface SceneBoundaryState {
@@ -29,7 +28,7 @@ export class MatchSceneErrorBoundary extends Component<SceneBoundaryProps, Scene
         <div className="match-renderer-fallback" role="alert">
           <strong>Match graphics were interrupted</strong>
           <p>Gameplay is paused. Your displayed score and match clock are preserved, but the physical player and ball positions will restart.</p>
-          <button type="button" onClick={this.props.onRetry}>Restart graphics in Performance mode</button>
+          <p>Use the recovery controls below to restart safely.</p>
         </div>
       )
     }
