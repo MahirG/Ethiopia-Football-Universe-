@@ -118,9 +118,9 @@ function Runtime({ ballRef, controlledPosition, controlledIndex, scoreGoal, onTe
     const velocityChange = previousCompetitiveVelocity.distanceTo(ballVelocity)
     const closestPlayer = humanWorld.world.players.reduce<(typeof humanWorld.world.players)[number] | null>((best, player) => {
       if (!best) return player
-      return player.position.distanceTo(ballPosition) < best.position.distanceTo(ballPosition) ? player : best
+      return player.position.distanceToSquared(ballPosition) < best.position.distanceToSquared(ballPosition) ? player : best
     }, null)
-    if (closestPlayer && closestPlayer.position.distanceTo(ballPosition) < 1.45 && velocityChange > 0.9 && state.clock.elapsedTime - lastCompetitiveContact.current > 0.16) {
+    if (closestPlayer && closestPlayer.position.distanceToSquared(ballPosition) < 1.45 * 1.45 && velocityChange > 0.9 && state.clock.elapsedTime - lastCompetitiveContact.current > 0.16) {
       const action = (['pass', 'shoot', 'clear', 'tackle', 'intercept', 'goalkeeper-claim'] as const).includes(closestPlayer.action as never)
         ? closestPlayer.action as Phase5BallContact['action']
         : ballVelocity.length() > 13 ? 'shoot' : ballVelocity.length() > 6 ? 'pass' : 'dribble'
@@ -145,9 +145,14 @@ function Runtime({ ballRef, controlledPosition, controlledIndex, scoreGoal, onTe
       outer: for (const player of humanWorld.world.players) {
         for (const opponent of humanWorld.world.players) {
           if (opponent.team === player.team || opponent.id === player.id) continue
-          const distanceBetween = player.position.distanceTo(opponent.position)
-          const relativeSpeed = player.velocity.clone().sub(opponent.velocity).length()
-          if (distanceBetween < 0.62 && relativeSpeed > 5.6) {
+          const separationSquared = player.position.distanceToSquared(opponent.position)
+          if (separationSquared >= 0.62 * 0.62) continue
+          const deltaX = player.velocity.x - opponent.velocity.x
+          const deltaY = player.velocity.y - opponent.velocity.y
+          const deltaZ = player.velocity.z - opponent.velocity.z
+          const relativeSpeedSquared = deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ
+          if (relativeSpeedSquared > 5.6 * 5.6) {
+            const relativeSpeed = Math.sqrt(relativeSpeedSquared)
             const severity = THREE.MathUtils.clamp(relativeSpeed / 10 + (1 - player.physical.balance) * 0.18, 0.35, 1)
             const foul: Phase5FoulContact = {
               team: player.team,
