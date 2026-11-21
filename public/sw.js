@@ -56,7 +56,8 @@ self.addEventListener('fetch', (event) => {
     if (cached) return cached;
     const response = await fetch(request);
     // Bound offline assets to 60 items of up to 2 MiB each.
-    event.waitUntil(cacheSafeAsset(request, response));
+    const cacheCopy = response.clone();
+    event.waitUntil(cacheSafeAsset(request, cacheCopy));
     return response;
   })());
 });
