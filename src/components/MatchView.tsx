@@ -29,6 +29,7 @@ import { AudioDebugOverlay } from '../audio/AudioDebugOverlay'
 import { AudioSettingsPanel } from '../audio/AudioSettingsPanel'
 import { useGlobalAudio } from '../audio/AudioProvider'
 import { useFootballAudio } from '../audio/useFootballAudio'
+import type { AudioEventContext, FootballAudioEvent } from '../audio/types'
 import { UniversalControlsOverlay } from '../input/UniversalControlsOverlay'
 import { ControlSettingsPanel } from '../input/ControlSettingsPanel'
 import { MatchDeviceLab } from '../diagnostics/MatchDeviceLab'
@@ -223,6 +224,15 @@ export function MatchView() {
     stadiumName: world.venue.name,
     competition: world.competition.name,
   })
+  const emitMatchAudio = useCallback((event: FootballAudioEvent, payload: Omit<AudioEventContext, 'event'> = {}) => {
+    try {
+      audio.emit(event, payload)
+    } catch (error) {
+      // A disabled/suspended Android audio context must never abort the 3D frame.
+      recordClientFailure('match-audio', error)
+    }
+  }, [audio])
+
   const commentaryCaption = audio.caption
   const commentarySupported = audio.speechSupported
 
@@ -293,10 +303,10 @@ export function MatchView() {
   const handleGoal = useCallback((team: TeamSide) => {
     setScore((current) => ({ ...current, [team]: current[team] + 1 }))
     setCelebrationTeam(team)
-    audio.emit('goal-scored', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, importance: 0.72, tension: 0.9 })
+    emitMatchAudio('goal-scored', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, importance: 0.72, tension: 0.9 })
     audio.setCrowd({ intensity: 1, tension: 0.82, momentum: team === 'home' ? 1 : -1, attackThreat: 0.3 })
     beginReplay(`${team === 'home' ? home.shortName : away.shortName} goal · cinematic replay`)
-  }, [audio, away.shortName, beginReplay, home.shortName, score.away, score.home, score.time])
+  }, [audio, emitMatchAudio, away.shortName, beginReplay, home.shortName, score.away, score.home, score.time])
 
   const handleAction = useCallback((action: MatchAction, team: TeamSide) => {
     setActions((current) => {
@@ -314,10 +324,10 @@ export function MatchView() {
         ? { ...current, homeShots: current.homeShots + 1 }
         : { ...current, awayShots: current.awayShots + 1 }
     })
-    if (action === 'pass') audio.emit('pass-completed', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.48 })
-    else if (action === 'save') audio.emit('save-made', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.8 })
-    else audio.emit('shot-taken', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.88, speed: telemetry.ballSpeed })
-  }, [audio, score.away, score.home, score.time, telemetry.ballSpeed])
+    if (action === 'pass') emitMatchAudio('pass-completed', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.48 })
+    else if (action === 'save') emitMatchAudio('save-made', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.8 })
+    else emitMatchAudio('shot-taken', { team, matchMinute: score.time, scoreHome: score.home, scoreAway: score.away, force: 0.88, speed: telemetry.ballSpeed })
+  }, [emitMatchAudio, score.away, score.home, score.time, telemetry.ballSpeed])
 
   const startOpeningSequence = useCallback(async () => {
     await audio.ensureStarted()
@@ -469,8 +479,8 @@ export function MatchView() {
 
   const handleSceneEvent = useCallback((eventMessage: string) => {
     setMessage(eventMessage)
-    if (eventMessage.toLowerCase().includes('restart')) audio.emit('ball-kicked', { scoreHome: score.home, scoreAway: score.away, matchMinute: score.time, force: 0.45 })
-  }, [audio, score.away, score.home, score.time])
+    if (eventMessage.toLowerCase().includes('restart')) emitMatchAudio('ball-kicked', { scoreHome: score.home, scoreAway: score.away, matchMinute: score.time, force: 0.45 })
+  }, [emitMatchAudio, score.away, score.home, score.time])
 
 
   const enterFullscreen = () => {
@@ -569,7 +579,7 @@ export function MatchView() {
           onRendererContextRestored={handleWebglRestoration}
           onTelemetry={setTelemetry}
           onHumanTelemetry={setHumanTelemetry}
-          onAudioEvent={(event, context) => audio.emit(event, { ...context, scoreHome: score.home, scoreAway: score.away, matchMinute: score.time })}
+          onAudioEvent={(event, context) => emitMatchAudio(event, { ...context, scoreHome: score.home, scoreAway: score.away, matchMinute: score.time })}
         />
         </MatchSceneErrorBoundary>
         {rendererIssue && (
